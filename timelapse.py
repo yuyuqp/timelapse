@@ -90,5 +90,9 @@ if __name__ == "__main__":
                 session.compile_video(rate)
             print('Done')
             break
+        except OSError as e:
+            if 'screen grab failed' in e.args:
+                continue
+            raise(e)
     
     print()
