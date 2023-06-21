@@ -38,10 +38,10 @@ class Session:
         )
         path_str = str(video_path)
         cmd = [
-            'ffmpeg',
-            '-framerate',
+            "ffmpeg",
+            "-framerate",
             str(frame_rate),
-            '-i',
+            "-i",
             f"%0{self.rjust_n}d.png",
             path_str,
         ]
@@ -52,16 +52,21 @@ if __name__ == "__main__":
     gc.set_threshold(5, 2, 2)
     SLEEP_SECS = 6
     # TODO: read from config file
-    path = (
-        Path(r"/home/yuyue/Videos/Timelapse/Shots")
-        if os.name != "nt"
-        else Path("C:", "/", "Users", "Yue Yu", "Videos", "Timelapse", "Shots")
-    )
-    output_path = (
-        Path(r"/home/yuyue/Videos/Timelapse/Compilations")
-        if os.name != "nt"
-        else Path("C:", "/", "Users", "Yue Yu", "Videos", "Timelapse", "Compilations")
-    )
+
+    path = Path(r"/home/yuyue/Videos/Timelapse/Shots")  # linux
+    if os.name == "nt":
+        path = Path("C:", "/", "Users", "Yue Yu", "Videos", "Timelapse", "Shots")
+    if sys.platform == "darwin":
+        path = Path(r"/Users/yuyue/Movies/Timelapse/Shots")
+
+    output_path = Path(r"/home/yuyue/Videos/Timelapse/Compilations")  # linux
+    if os.name == "nt":
+        output_path = Path(
+            "C:", "/", "Users", "Yue Yu", "Videos", "Timelapse", "Compilations"
+        )
+    if sys.platform == "darwin":
+        output_path = Path(r"/Users/yuyue/Movies/Timelapse/Compilations")
+
     path.mkdir(parents=True, exist_ok=True)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -73,11 +78,11 @@ if __name__ == "__main__":
             session.compile_video(rate)
             exit(0)
         elif sys.argv[1].lower() in ("r", "rm", "remove", "clear"):
-            files = path.glob('**/*')
+            files = path.glob("**/*")
             for f in files:
                 f.unlink()
             exit(0)
-    
+
     while True:
         try:
             session.shot()
@@ -85,14 +90,14 @@ if __name__ == "__main__":
             time.sleep(SLEEP_SECS)
         except KeyboardInterrupt:
             print()
-            if input('Compile?').lower() in ('y', 'yes'):
-                rate = int(input('framerate: '))
+            if input("Compile?").lower() in ("y", "yes"):
+                rate = int(input("framerate: "))
                 session.compile_video(rate)
-            print('Done')
+            print("Done")
             break
         except OSError as e:
-            if 'screen grab failed' in e.args:
+            if "screen grab failed" in e.args:
                 continue
-            raise(e)
-    
+            raise (e)
+
     print()
