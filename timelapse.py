@@ -48,6 +48,29 @@ class Session:
         process = Popen(cmd, cwd=str(self.path))
 
 
+def prepare(max_file: Path | None, path: Path, session: Session):
+    if max_file is not None:
+        try:
+            _input = input("Continue: [continue], Compile: [c], Remove: [r]: ").lower()
+        except KeyboardInterrupt:
+            print()
+            print("Exiting")
+            exit(0)
+        if _input in ("c", "compile"):
+            rate = int(input("framerate: "))
+            session.compile_video(rate)
+            exit(0)
+        elif _input in ("r", "rm", "remove", "clear"):
+            files = path.glob("**/*")
+            for f in files:
+                f.unlink()
+            exit(0)
+        elif _input in ("continue",):
+            session.numbering = int(max_file.stem) + 1
+        else:
+            prepare(max_file, path, session)
+
+
 if __name__ == "__main__":
     gc.set_threshold(5, 2, 2)
     SLEEP_SECS = 6
@@ -72,16 +95,8 @@ if __name__ == "__main__":
 
     session = Session(path=path, output_path=output_path)
 
-    if len(sys.argv) > 1:
-        if sys.argv[1].lower() in ("c", "compilation"):
-            rate = int(input("framerate: "))
-            session.compile_video(rate)
-            exit(0)
-        elif sys.argv[1].lower() in ("r", "rm", "remove", "clear"):
-            files = path.glob("**/*")
-            for f in files:
-                f.unlink()
-            exit(0)
+    max_file = max(path.iterdir(), default=None)
+    prepare(max_file, path, session)
 
     while True:
         try:
@@ -91,7 +106,7 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             try:
                 print()
-                _input = input("Pasued. Continue: [enter], Compile: [c]").lower()
+                _input = input("Pasued. Continue: [enter], Compile: [c]: ").lower()
                 if _input in ("c", "compile"):
                     rate = int(input("framerate: "))
                     session.compile_video(rate)
