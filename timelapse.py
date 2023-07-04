@@ -89,12 +89,19 @@ if __name__ == "__main__":
             print(f"{session.numbering}\r", end="")
             time.sleep(SLEEP_SECS)
         except KeyboardInterrupt:
-            print()
-            if input("Compile?").lower() in ("y", "yes"):
-                rate = int(input("framerate: "))
-                session.compile_video(rate)
-            print("Done")
-            break
+            try:
+                print()
+                _input = input("Pasued. Continue: [enter], Compile: [c]").lower()
+                if _input in ("c", "compile"):
+                    rate = int(input("framerate: "))
+                    session.compile_video(rate)
+                    print("Done")
+                    break
+                continue
+            except KeyboardInterrupt:
+                print()
+                print("Exiting")
+                break
         except OSError as e:
             if "screen grab failed" in e.args:
                 continue
