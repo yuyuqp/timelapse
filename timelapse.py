@@ -8,6 +8,9 @@ from subprocess import Popen
 
 from PIL import ImageGrab
 
+if sys.platform == "darwin":
+    from shotmac import shot as shotmac
+
 
 class Session:
     def __init__(
@@ -25,10 +28,16 @@ class Session:
         return Path(self.path, f"{number_txt}.png")
 
     def shot(self):
-        pic = ImageGrab.grab(
-            bbox=None, include_layered_windows=False, all_screens=self.all_screen
-        )
-        pic.save(str(self.get_file_path()))
+        pic_path = self.get_file_path()
+
+        if os.name == "nt":
+            pic = ImageGrab.grab(
+                bbox=None, include_layered_windows=False, all_screens=self.all_screen
+            )
+            pic.save(str(pic_path))
+        elif sys.platform == "darwin":
+            shotmac(pic_path)
+
         self.numbering += 1
         assert self.numbering <= self.limit
 
