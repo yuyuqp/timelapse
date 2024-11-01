@@ -37,6 +37,9 @@ class Session:
             pic.save(str(pic_path))
         elif sys.platform == "darwin":
             shotmac(pic_path)
+        else:
+            pic = ImageGrab.grab(bbox=None, include_layered_windows=False)
+            pic.save(str(pic_path))
 
         self.numbering += 1
         assert self.numbering <= self.limit
