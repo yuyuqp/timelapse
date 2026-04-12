@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 from pathlib import Path
 import tempfile
@@ -11,6 +12,9 @@ from timelapse.render import Render
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+STATE_DIR = Path.home() / ".timelapse"
+STATE_FILE = STATE_DIR / "state.json"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -121,6 +125,49 @@ def _assert_existing_dir(path_str: str, arg_name: str) -> Path:
     return path
 
 
+def _save_last_temp_pics_dir(path: Path) -> None:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    state = {"last_temp_pics_dir": str(path)}
+    STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+
+def _load_last_temp_pics_dir() -> Path | None:
+    if not STATE_FILE.exists():
+        return None
+
+    try:
+        state = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.warning("Ignoring invalid state file: %s", STATE_FILE)
+        return None
+
+    raw_path = state.get("last_temp_pics_dir")
+    if not isinstance(raw_path, str) or not raw_path:
+        return None
+
+    path = Path(raw_path)
+    if not path.exists() or not path.is_dir():
+        logger.warning("Saved temp pictures directory no longer exists: %s", path)
+        return None
+    return path
+
+
+def _confirm_clean(pics_dir: Path | None, output_dir: Path | None) -> bool:
+    targets: list[str] = []
+    if pics_dir is not None:
+        targets.append(f"screenshots in {pics_dir}")
+    if output_dir is not None:
+        targets.append(f"videos in {output_dir}")
+
+    logger.info("About to permanently delete %s", " and ".join(targets))
+    try:
+        answer = input("Proceed with clean? [y/N]: ").strip().lower()
+    except (KeyboardInterrupt, EOFError):
+        print()
+        return False
+    return answer in ("y", "yes")
+
+
 def _delete_matching_files(path: Path, glob_pattern: str) -> int:
     deleted = 0
     for file in path.glob(glob_pattern):
@@ -150,6 +197,8 @@ def get_collect_config(args: argparse.Namespace) -> CollectConfig:
 
     if temp_pics:
         pics_dir_arg = tempfile.mkdtemp()
+        _save_last_temp_pics_dir(Path(pics_dir_arg))
+        logger.info("Saved temp pictures directory for future clean: %s", pics_dir_arg)
 
     assert pics_dir_arg is not None
     pics_dir = Path(pics_dir_arg)
@@ -207,19 +256,39 @@ def run_clean(args: argparse.Namespace) -> None:
     should_clean_pics = not args.videos_only
     should_clean_videos = not args.pics_only
 
+    pics_dir: Path | None = None
+    output_dir: Path | None = None
+
     if should_clean_pics and not args.pics_dir:
-        raise ValueError("--pics-dir is required when cleaning screenshots")
+        saved_pics_dir = _load_last_temp_pics_dir()
+        if saved_pics_dir is None:
+            raise ValueError(
+                "--pics-dir is required when cleaning screenshots unless a temp directory was previously saved"
+            )
+        pics_dir = saved_pics_dir
+        logger.info("Using saved temp pictures directory: %s", pics_dir)
+
     if should_clean_videos and not args.output_dir:
         raise ValueError("--output-dir is required when cleaning videos")
 
-    if should_clean_pics:
+    if should_clean_pics and pics_dir is None:
         pics_dir = _assert_existing_dir(args.pics_dir, "--pics-dir")
+
+    if should_clean_videos:
+        output_dir = _assert_existing_dir(args.output_dir, "--output-dir")
+
+    if not _confirm_clean(pics_dir if should_clean_pics else None, output_dir if should_clean_videos else None):
+        logger.info("Clean cancelled")
+        return
+
+    if should_clean_pics:
+        assert pics_dir is not None
         deleted_pics = _delete_matching_files(pics_dir, "**/*.png")
         deleted_dirs = _delete_empty_dirs(pics_dir)
         logger.info("Deleted %d screenshots and %d empty directories", deleted_pics, deleted_dirs)
 
     if should_clean_videos:
-        output_dir = _assert_existing_dir(args.output_dir, "--output-dir")
+        assert output_dir is not None
         deleted_videos = _delete_matching_files(output_dir, "**/*.mp4")
         logger.info("Deleted %d rendered videos", deleted_videos)
 
