@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 dependencies = [
 	"anyio>=4.6",
 	"pillow>=11.0",
+	"textual>=0.62",
 ]
 
 [project.scripts]
