@@ -1,3 +1,2 @@
-pillow
-black
-anyio
+anyio>=4.6
+pillow>=11.0

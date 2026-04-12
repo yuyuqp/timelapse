@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "timelapse"
+version = "0.1.0"
+description = "Cross-platform screenshot collection and timelapse rendering"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+	"anyio>=4.6",
+	"pillow>=11.0",
+]
+
+[project.scripts]
+timelapse = "timelapse.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

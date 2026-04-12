@@ -1,9 +1,11 @@
 from datetime import datetime
 from pathlib import Path
 import sys
-from timelapse.config import RenderConfig
+
 import anyio
 from anyio.streams.text import TextReceiveStream
+
+from timelapse.config import RenderConfig
 
 
 class Render:
@@ -33,10 +35,7 @@ class Render:
         return min(int(file.stem) for file in png_files)
 
     async def render(self, cmd: list[str]) -> None:
-        async with await anyio.open_process(
-            cmd,
-            cwd=str(self.config.pics_dir),
-        ) as process:
+        async with await anyio.open_process(cmd, cwd=str(self.config.pics_dir)) as process:
             if process.stdout is not None:
                 async for text in TextReceiveStream(process.stdout):
                     print(text)
@@ -47,7 +46,7 @@ class Render:
     def get_render_cmd(self) -> list[str]:
         path_str = str(self.video_path())
         start_number = self.get_start_number()
-        cmd = [
+        return [
             "ffmpeg",
             "-framerate",
             str(self.config.frame_rate),
@@ -57,9 +56,7 @@ class Render:
             f"%0{self.rjust_width}d.png",
             path_str,
         ]
-        return cmd
 
     def video_path(self) -> Path:
         stem = datetime.now().strftime(r"%Y-%m-%d=%H-%M-%S")
-        path = Path(self.config.output_dir, stem + ".mp4")
-        return path
+        return Path(self.config.output_dir, f"{stem}.mp4")
