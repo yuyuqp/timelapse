@@ -103,14 +103,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory containing rendered videos to remove",
     )
     parser_clean.add_argument(
-        "--pics-only",
+        "--pics",
         action="store_true",
-        help="Only clean screenshot files",
+        help="Clean screenshot files",
     )
     parser_clean.add_argument(
-        "--videos-only",
+        "--videos",
         action="store_true",
-        help="Only clean rendered video files",
+        help="Clean rendered video files",
     )
 
     return parser
@@ -250,11 +250,11 @@ async def _on_keyboard_interrupt(_: Collect) -> bool:
 
 
 def run_clean(args: argparse.Namespace) -> None:
-    if args.pics_only and args.videos_only:
-        raise ValueError("Cannot combine --pics-only and --videos-only")
+    should_clean_pics = args.pics
+    should_clean_videos = args.videos
 
-    should_clean_pics = not args.videos_only
-    should_clean_videos = not args.pics_only
+    if not should_clean_pics and not should_clean_videos:
+        raise ValueError("Select at least one clean target: --pics and/or --videos")
 
     pics_dir: Path | None = None
     output_dir: Path | None = None

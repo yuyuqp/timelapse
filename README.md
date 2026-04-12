@@ -51,10 +51,10 @@ Rendering auto-detects:
 
 ### Clean
 
-python -m timelapse clean -d C:/path/to/shots -o C:/path/to/videos
+python -m timelapse clean --pics --videos -d C:/path/to/shots -o C:/path/to/videos
 
 Variants:
 
-- --pics-only cleans only .png screenshots
-- --videos-only cleans only .mp4 outputs
+- --pics cleans only .png screenshots
+- --videos cleans only .mp4 outputs
 
