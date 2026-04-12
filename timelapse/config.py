@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 import os
 
@@ -9,17 +10,18 @@ Platforms = Literal["windows", "mac", "linux"]
 class CollectConfig:
     platform: Platforms
     temp_pics: bool
-    pics_dir: str
+    pics_dir: Path
     start_mode: Literal["continue", "new"]
     screen_mode: Literal["all", "current"]
     rate_secs: int
+    rjust_width: int 
 
 
 @dataclass
-class CompileConfig:
+class RenderConfig:
     platform: Platforms
-    pics_dir: str
-    output_dir: str
+    pics_dir: Path
+    output_dir: Path
     frame_rate: int
 
 
