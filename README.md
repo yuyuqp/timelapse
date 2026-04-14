@@ -26,6 +26,10 @@ Use either the installed console script or module entrypoint:
 - timelapse --help
 - python -m timelapse --help
 
+Launch the terminal UI:
+
+- timelapse tui
+
 Compatibility launcher also works from repo root:
 
 - python main.py --help
@@ -57,4 +61,12 @@ Variants:
 
 - --pics cleans only .png screenshots
 - --videos cleans only .mp4 outputs
+
+### TUI
+
+The `tui` command opens an interactive terminal UI powered by Textual.
+
+- It can run collect, render, and clean.
+- It streams command output in a built-in log panel.
+- Clean in TUI requires an explicit confirmation checkbox.
 

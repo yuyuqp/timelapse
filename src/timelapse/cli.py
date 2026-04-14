@@ -112,6 +112,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Clean rendered video files",
     )
+    parser_clean.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Skip clean confirmation prompt",
+    )
+
+    subparsers.add_parser("tui", help="Launch the interactive terminal UI")
 
     return parser
 
@@ -277,9 +285,10 @@ def run_clean(args: argparse.Namespace) -> None:
     if should_clean_videos:
         output_dir = _assert_existing_dir(args.output_dir, "--output-dir")
 
-    if not _confirm_clean(pics_dir if should_clean_pics else None, output_dir if should_clean_videos else None):
-        logger.info("Clean cancelled")
-        return
+    if not args.yes:
+        if not _confirm_clean(pics_dir if should_clean_pics else None, output_dir if should_clean_videos else None):
+            logger.info("Clean cancelled")
+            return
 
     if should_clean_pics:
         assert pics_dir is not None
@@ -331,6 +340,12 @@ def main() -> None:
 
     if args.command == "clean":
         run_clean(args)
+        return
+
+    if args.command == "tui":
+        from timelapse.tui import run_tui
+
+        run_tui()
         return
 
     parser.print_help()
