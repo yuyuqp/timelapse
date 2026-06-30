@@ -46,6 +46,7 @@ timelapse render latest
 timelapse list
 timelapse open latest
 timelapse clean latest --frames
+timelapse doctor
 ```
 
 When running through Cargo, place arguments after `--`:
@@ -162,9 +163,24 @@ Clean is intentionally conservative:
 - `--dry-run` shows the deletion plan without deleting files.
 - It asks for confirmation unless `--yes` is passed.
 
+## Doctor
+
+Check whether the local environment is ready for screenshot capture and timelapse rendering:
+
+```sh
+cargo run -- doctor
+cargo run -- doctor --library ~/Videos/Timelapse
+```
+
+This runs diagnostics on:
+- **Library**: Verifies the default or provided library path. If it doesn't exist, reports that it will be created.
+- **Sessions Directory**: Warns if the sessions directory is missing (since `collect` will auto-create it).
+- **Screenshot Backend**: Verifies the capture backend (`xcap`), listing all detected displays, their resolutions, and primary status.
+- **ffmpeg**: Verifies `ffmpeg` is available in `PATH` and reports its version.
+- **Write Test**: Performs a conservative write/delete test with a temporary file in the library directory (or its nearest existing parent).
+
 ## Not Implemented Yet
 
-- `doctor`
 - TUI
 - Tauri GUI
 - Config file support

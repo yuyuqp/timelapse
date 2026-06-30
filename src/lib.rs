@@ -1,5 +1,6 @@
 pub mod capture;
 pub mod config;
+pub mod doctor;
 pub mod error;
 pub mod frame_store;
 pub mod manage;

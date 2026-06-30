@@ -30,6 +30,8 @@ enum Commands {
     Open(OpenArgs),
     /// Permanently delete generated files from a session.
     Clean(CleanArgs),
+    /// Check whether the local environment is ready for timelapse usage.
+    Doctor(DoctorArgs),
 }
 
 #[derive(Debug, Parser)]
@@ -128,6 +130,13 @@ struct CleanArgs {
     dry_run: bool,
 }
 
+#[derive(Debug, Parser)]
+struct DoctorArgs {
+    /// Timelapse library root.
+    #[arg(long)]
+    library: Option<PathBuf>,
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum DisplayArg {
     All,
@@ -152,6 +161,7 @@ pub fn run() -> anyhow::Result<()> {
         Commands::List(args) => run_list(args),
         Commands::Open(args) => run_open(args),
         Commands::Clean(args) => run_clean(args),
+        Commands::Doctor(args) => run_doctor(args),
     }
 }
 
@@ -341,6 +351,28 @@ fn run_clean(args: CleanArgs) -> anyhow::Result<()> {
         "Deleted {} frame(s) and {} video(s).",
         result.frames_deleted, result.videos_deleted
     );
+    Ok(())
+}
+
+fn run_doctor(args: DoctorArgs) -> anyhow::Result<()> {
+    use timelapse::doctor::{run_diagnostics, CheckStatus};
+
+    println!("Timelapse doctor\n");
+
+    let checks = run_diagnostics(args.library)?;
+    let mut has_required_failure = false;
+
+    for check in checks {
+        println!("{} {}: {}", check.status, check.name, check.message);
+        if check.status == CheckStatus::Error && check.is_required {
+            has_required_failure = true;
+        }
+    }
+
+    if has_required_failure {
+        anyhow::bail!("one or more required environment checks failed");
+    }
+
     Ok(())
 }
 
