@@ -104,7 +104,7 @@ struct TuiState {
     confirm_clean_index: Option<usize>,
     change_library_input: Option<String>,
     status_message: Option<(String, SystemTime)>,
-    show_splash: bool,
+    show_welcome: bool,
 }
 
 impl TuiState {
@@ -130,7 +130,7 @@ impl TuiState {
             confirm_clean_index: None,
             change_library_input: None,
             status_message: None,
-            show_splash: true,
+            show_welcome: true,
         })
     }
 
@@ -203,8 +203,8 @@ fn tui_loop(
         if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    if state.show_splash {
-                        state.show_splash = false;
+                    if state.show_welcome {
+                        state.show_welcome = false;
                         continue;
                     }
                     if let Some(ref mut input_str) = state.change_library_input {
@@ -669,8 +669,8 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
         return;
     }
 
-    if state.show_splash {
-        draw_splash_screen(f, size, state);
+    if state.show_welcome {
+        draw_welcome_screen(f, size, state);
         return;
     }
 
@@ -1195,7 +1195,7 @@ fn draw_library_modal(f: &mut ratatui::Frame, screen_area: Rect, input: &str) {
     f.render_widget(paragraph, modal_area);
 }
 
-fn draw_splash_screen(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
+fn draw_welcome_screen(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Cyan));
