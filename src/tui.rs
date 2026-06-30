@@ -549,6 +549,22 @@ fn execute_tui_clean(state: &mut TuiState, clean_options: CleanOptions, dry_run:
 fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
     let size = f.area();
 
+    // Screen size warning guard (Option 1)
+    if size.width < 80 || size.height < 20 {
+        let msg = format!(
+            "\n\n  Terminal window size is too small!\n\n  \
+             Current:  {}x{}\n  \
+             Required: 80x20\n\n  \
+             Please resize or zoom out your terminal window.",
+            size.width, size.height
+        );
+        let warning = Paragraph::new(msg)
+            .block(Block::default().borders(Borders::ALL).title(" Warning "))
+            .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+        f.render_widget(warning, size);
+        return;
+    }
+
     // Main layout
     let chunks = Layout::default()
         .direction(Direction::Vertical)
