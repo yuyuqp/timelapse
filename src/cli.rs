@@ -6,8 +6,8 @@ use std::time::Duration;
 use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
 use timelapse::{
-    CaptureBackend, CaptureLoop, DEFAULT_RENDER_FPS, DisplayTarget, RenderOptions, RenderTarget,
-    SessionOpenOptions, SessionTarget, XcapBackend,
+    CaptureBackend, CaptureLoop, CleanOptions, DEFAULT_RENDER_FPS, DisplayTarget, RenderOptions,
+    RenderTarget, SessionOpenOptions, SessionTarget, XcapBackend,
 };
 
 #[derive(Debug, Parser)]
@@ -28,6 +28,8 @@ enum Commands {
     List(ListArgs),
     /// Open a session in the system file manager.
     Open(OpenArgs),
+    /// Permanently delete generated files from a session.
+    Clean(CleanArgs),
 }
 
 #[derive(Debug, Parser)]
@@ -100,6 +102,32 @@ struct OpenArgs {
     library: Option<PathBuf>,
 }
 
+#[derive(Debug, Parser)]
+struct CleanArgs {
+    /// Session target: latest or a session directory.
+    target: String,
+
+    /// Timelapse library root used with the latest target.
+    #[arg(long)]
+    library: Option<PathBuf>,
+
+    /// Delete numbered PNG frames from the session frames/ directory.
+    #[arg(long)]
+    frames: bool,
+
+    /// Delete MP4 videos from the session directory.
+    #[arg(long)]
+    videos: bool,
+
+    /// Skip the confirmation prompt.
+    #[arg(short = 'y', long)]
+    yes: bool,
+
+    /// Show what would be deleted without deleting files.
+    #[arg(long)]
+    dry_run: bool,
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum DisplayArg {
     All,
@@ -123,6 +151,7 @@ pub fn run() -> anyhow::Result<()> {
         Commands::Render(args) => run_render(args),
         Commands::List(args) => run_list(args),
         Commands::Open(args) => run_open(args),
+        Commands::Clean(args) => run_clean(args),
     }
 }
 
@@ -268,6 +297,71 @@ fn run_open(args: OpenArgs) -> anyhow::Result<()> {
     let path = timelapse::open_session(target)?;
     eprintln!("opened {}", path.display());
     Ok(())
+}
+
+fn run_clean(args: CleanArgs) -> anyhow::Result<()> {
+    if args.library.is_some() && args.target != "latest" {
+        anyhow::bail!("--library can only be used with `timelapse clean latest`");
+    }
+
+    let target = session_target(args.target, args.library);
+    let options = CleanOptions {
+        target,
+        frames: args.frames,
+        videos: args.videos,
+    };
+    let plan = timelapse::create_clean_plan(options)?;
+
+    if plan.frames.is_empty() && plan.videos.is_empty() {
+        println!("Nothing to delete in {}.", plan.session_path.display());
+        return Ok(());
+    }
+
+    if args.dry_run {
+        println!("Dry run: would delete files from:");
+    } else {
+        println!("About to permanently delete files from:");
+    }
+    println!("  {}", plan.session_path.display());
+    println!("  frames: {}", plan.frames.len());
+    println!("  videos: {}", plan.videos.len());
+
+    if args.dry_run {
+        println!("No files deleted.");
+        return Ok(());
+    }
+
+    if !args.yes && !confirm_clean()? {
+        println!("Clean cancelled.");
+        return Ok(());
+    }
+
+    let result = timelapse::execute_clean_plan(&plan)?;
+    println!(
+        "Deleted {} frame(s) and {} video(s).",
+        result.frames_deleted, result.videos_deleted
+    );
+    Ok(())
+}
+
+fn session_target(target: String, library: Option<PathBuf>) -> SessionTarget {
+    if target == "latest" {
+        SessionTarget::Latest { library }
+    } else {
+        SessionTarget::Path(PathBuf::from(target))
+    }
+}
+
+fn confirm_clean() -> anyhow::Result<bool> {
+    print!("Proceed? [y/N]: ");
+    io::stdout().flush()?;
+
+    let mut answer = String::new();
+    io::stdin().read_line(&mut answer)?;
+    Ok(matches!(
+        answer.trim().to_ascii_lowercase().as_str(),
+        "y" | "yes"
+    ))
 }
 
 fn parse_duration(raw: &str) -> Result<Duration, String> {

@@ -45,6 +45,7 @@ timelapse collect
 timelapse render latest
 timelapse list
 timelapse open latest
+timelapse clean latest --frames
 ```
 
 When running through Cargo, place arguments after `--`:
@@ -140,11 +141,29 @@ cargo run -- open latest --library ~/Videos/Timelapse
 cargo run -- open ./my-session
 ```
 
-This is the current non-destructive cleanup workflow: inspect the session in your OS file manager and delete files manually if desired.
+## Clean
+
+Permanently delete generated files from a recognized session:
+
+```sh
+cargo run -- clean latest --frames
+cargo run -- clean latest --videos
+cargo run -- clean ./my-session --frames --videos
+cargo run -- clean ./my-session --frames --dry-run
+cargo run -- clean ./my-session --frames --yes
+```
+
+Clean is intentionally conservative:
+
+- It only works on session folders, not arbitrary raw frame directories.
+- You must pass `--frames`, `--videos`, or both.
+- It deletes numbered PNG frames from `frames/`.
+- It deletes MP4 videos from the session directory.
+- `--dry-run` shows the deletion plan without deleting files.
+- It asks for confirmation unless `--yes` is passed.
 
 ## Not Implemented Yet
 
-- Automated `clean`
 - `doctor`
 - TUI
 - Tauri GUI

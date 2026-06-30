@@ -23,6 +23,26 @@ pub struct SessionSummary {
     pub videos: Vec<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct CleanOptions {
+    pub target: SessionTarget,
+    pub frames: bool,
+    pub videos: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct CleanPlan {
+    pub session_path: PathBuf,
+    pub frames: Vec<PathBuf>,
+    pub videos: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CleanResult {
+    pub frames_deleted: usize,
+    pub videos_deleted: usize,
+}
+
 pub fn list_sessions(library: Option<PathBuf>) -> Result<Vec<SessionSummary>> {
     let sessions_dir = sessions_dir(library)?;
     if !sessions_dir.exists() {
@@ -73,6 +93,54 @@ pub fn open_session(target: SessionTarget) -> Result<PathBuf> {
     let path = resolve_session_target(target)?;
     open_file_manager(&path)?;
     Ok(path)
+}
+
+pub fn create_clean_plan(options: CleanOptions) -> Result<CleanPlan> {
+    if !options.frames && !options.videos {
+        return Err(TimelapseError::InvalidArgument(
+            "select at least one clean target: --frames and/or --videos".to_string(),
+        ));
+    }
+
+    let session_path = resolve_session_target(options.target)?;
+    ensure_recognized_session(&session_path)?;
+
+    let paths = SessionPaths::new(session_path.clone());
+    let frames = if options.frames {
+        find_numbered_pngs(&paths.frames_dir)?
+    } else {
+        Vec::new()
+    };
+    let videos = if options.videos {
+        find_videos(&session_path)?
+    } else {
+        Vec::new()
+    };
+
+    Ok(CleanPlan {
+        session_path,
+        frames,
+        videos,
+    })
+}
+
+pub fn clean_session(options: CleanOptions) -> Result<CleanResult> {
+    let plan = create_clean_plan(options)?;
+    execute_clean_plan(&plan)
+}
+
+pub fn execute_clean_plan(plan: &CleanPlan) -> Result<CleanResult> {
+    for frame in &plan.frames {
+        fs::remove_file(frame)?;
+    }
+    for video in &plan.videos {
+        fs::remove_file(video)?;
+    }
+
+    Ok(CleanResult {
+        frames_deleted: plan.frames.len(),
+        videos_deleted: plan.videos.len(),
+    })
 }
 
 fn inspect_session(path: PathBuf) -> Result<SessionSummary> {
@@ -166,6 +234,47 @@ fn find_videos(path: &Path) -> Result<Vec<PathBuf>> {
     Ok(videos)
 }
 
+fn find_numbered_pngs(path: &Path) -> Result<Vec<PathBuf>> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    if !path.is_dir() {
+        return Err(TimelapseError::InvalidSession {
+            path: path.to_path_buf(),
+            message: "frames path is not a directory".to_string(),
+        });
+    }
+
+    let mut frames = Vec::new();
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_file() || path.extension().and_then(|ext| ext.to_str()) != Some("png") {
+            continue;
+        }
+        let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) else {
+            continue;
+        };
+        if !stem.is_empty() && stem.bytes().all(|byte| byte.is_ascii_digit()) {
+            frames.push(path);
+        }
+    }
+    frames.sort();
+    Ok(frames)
+}
+
+fn ensure_recognized_session(path: &Path) -> Result<()> {
+    let paths = SessionPaths::new(path.to_path_buf());
+    if paths.frames_dir.is_dir() || paths.metadata_file.is_file() {
+        return Ok(());
+    }
+
+    Err(TimelapseError::InvalidSession {
+        path: path.to_path_buf(),
+        message: "expected a session folder with frames/ and/or session.toml".to_string(),
+    })
+}
+
 fn open_file_manager(path: &Path) -> Result<()> {
     let mut command = if cfg!(target_os = "windows") {
         let mut command = Command::new("explorer");
@@ -248,5 +357,57 @@ mod tests {
         .unwrap();
 
         assert!(latest.ends_with(Path::new("sessions").join("2026-03-01_010101")));
+    }
+
+    #[test]
+    fn clean_plan_only_targets_numbered_frames_and_session_videos() {
+        let temp = TempDir::new().unwrap();
+        let session = temp.path().join("session");
+        let frames = session.join("frames");
+        fs::create_dir_all(&frames).unwrap();
+        touch(&frames.join("000000001.png"));
+        touch(&frames.join("000000002.png"));
+        touch(&frames.join("not-a-frame.png"));
+        touch(&session.join("session.mp4"));
+        touch(&session.join("notes.txt"));
+
+        let plan = create_clean_plan(CleanOptions {
+            target: SessionTarget::Path(session),
+            frames: true,
+            videos: true,
+        })
+        .unwrap();
+
+        assert_eq!(plan.frames.len(), 2);
+        assert_eq!(plan.videos.len(), 1);
+    }
+
+    #[test]
+    fn clean_session_deletes_selected_files() {
+        let temp = TempDir::new().unwrap();
+        let session = temp.path().join("session");
+        let frames = session.join("frames");
+        fs::create_dir_all(&frames).unwrap();
+        let frame = frames.join("000000001.png");
+        let video = session.join("session.mp4");
+        touch(&frame);
+        touch(&video);
+
+        let result = clean_session(CleanOptions {
+            target: SessionTarget::Path(session),
+            frames: true,
+            videos: false,
+        })
+        .unwrap();
+
+        assert_eq!(
+            result,
+            CleanResult {
+                frames_deleted: 1,
+                videos_deleted: 0,
+            }
+        );
+        assert!(!frame.exists());
+        assert!(video.exists());
     }
 }
