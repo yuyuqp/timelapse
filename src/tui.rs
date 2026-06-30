@@ -102,6 +102,7 @@ struct TuiState {
     diagnostics: Option<Vec<DoctorCheck>>,
     confirm_clean_index: Option<usize>,
     change_library_input: Option<String>,
+    confirm_force_append: bool,
     status_message: Option<(String, SystemTime)>,
 }
 
@@ -127,6 +128,7 @@ impl TuiState {
             diagnostics: None,
             confirm_clean_index: None,
             change_library_input: None,
+            confirm_force_append: false,
             status_message: None,
         })
     }
@@ -225,6 +227,16 @@ fn tui_loop(
                                 }
                             }
                             _ => {}
+                        }
+                    } else if state.confirm_force_append {
+                        match key.code {
+                            KeyCode::Char('f') | KeyCode::Char('F') => {
+                                start_capture_thread(&mut state, tx.clone(), true);
+                                state.confirm_force_append = false;
+                            }
+                            _ => {
+                                state.confirm_force_append = false;
+                            }
                         }
                     } else {
                         match key.code {
@@ -350,7 +362,17 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
         ActiveTab::Capture => match key {
             KeyCode::Char(' ') => match state.capture_state {
                 CaptureState::Idle | CaptureState::Error(_) => {
-                    start_capture_thread(state, tx.clone());
+                    // Precheck: If in Append mode, check for interval mismatch
+                    if state.capture_mode == CaptureMode::Append && !state.sessions.is_empty() {
+                        let session = &state.sessions[state.selected_session_index];
+                        if let Some(ref metadata) = session.metadata {
+                            if metadata.interval_seconds != state.capture_interval.as_secs() {
+                                state.confirm_force_append = true;
+                                return;
+                            }
+                        }
+                    }
+                    start_capture_thread(state, tx.clone(), false);
                 }
                 CaptureState::Capturing { ref stop_handle, .. } => {
                     stop_handle.store(true, Ordering::SeqCst);
@@ -516,12 +538,13 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
     }
 }
 
-fn start_capture_thread(state: &mut TuiState, tx: Sender<TuiMessage>) {
+fn start_capture_thread(state: &mut TuiState, tx: Sender<TuiMessage>, force: bool) {
     tracing::info!(
-        "TUI: Starting capture thread background worker (mode: {:?}, interval: {}s, display: {:?})",
+        "TUI: Starting capture thread background worker (mode: {:?}, interval: {}s, display: {:?}, force: {})",
         state.capture_mode,
         state.capture_interval.as_secs(),
-        state.capture_display
+        state.capture_display,
+        force
     );
     state.capture_state = CaptureState::Starting;
     let library_path = state.library_path.clone();
@@ -543,7 +566,7 @@ fn start_capture_thread(state: &mut TuiState, tx: Sender<TuiMessage>) {
             append,
             interval: Some(interval),
             display,
-            force: append, // Force to skip interval validation prompts in TUI when appending
+            force, // Use the force parameter passed
         };
 
         let mut session = match Session::open(open_options) {
@@ -737,6 +760,11 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
     // Change Library Modal Overlay
     if let Some(ref input_str) = state.change_library_input {
         draw_library_modal(f, size, input_str);
+    }
+
+    // Confirm Force Append Modal Overlay
+    if state.confirm_force_append {
+        draw_force_append_modal(f, size, state);
     }
 }
 
@@ -1050,6 +1078,29 @@ fn draw_library_modal(f: &mut ratatui::Frame, screen_area: Rect, input: &str) {
         input
     );
     let paragraph = Paragraph::new(prompt_text)
+        .block(block)
+        .style(Style::default().fg(Color::White));
+
+    f.render_widget(paragraph, modal_area);
+}
+
+fn draw_force_append_modal(f: &mut ratatui::Frame, screen_area: Rect, state: &TuiState) {
+    let modal_area = centered_rect(65, 30, screen_area);
+    f.render_widget(Clear, modal_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Interval Mismatch ")
+        .border_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+
+    let session = &state.sessions[state.selected_session_index];
+    let session_interval_secs = session.metadata.as_ref().map_or(0, |m| m.interval_seconds);
+
+    let confirm_text = format!(
+        "\n  Warning: Capture interval mismatch!\n\n  Target session '{}'\n  was captured at {}s intervals.\n  Current TUI setting is {}s.\n\n  Appends with different intervals may affect timelapse speed.\n\n  Press [F] to force append anyway, or [Any other key] to cancel.",
+        session.name, session_interval_secs, state.capture_interval.as_secs()
+    );
+    let paragraph = Paragraph::new(confirm_text)
         .block(block)
         .style(Style::default().fg(Color::White));
 
