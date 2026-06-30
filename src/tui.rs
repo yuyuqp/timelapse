@@ -14,6 +14,7 @@ use ratatui::crossterm::terminal::{
 use ratatui::crossterm::ExecutableCommand;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, Tabs};
 use ratatui::Terminal;
 
@@ -102,7 +103,6 @@ struct TuiState {
     diagnostics: Option<Vec<DoctorCheck>>,
     confirm_clean_index: Option<usize>,
     change_library_input: Option<String>,
-    confirm_force_append: bool,
     status_message: Option<(String, SystemTime)>,
 }
 
@@ -128,7 +128,6 @@ impl TuiState {
             diagnostics: None,
             confirm_clean_index: None,
             change_library_input: None,
-            confirm_force_append: false,
             status_message: None,
         })
     }
@@ -227,16 +226,6 @@ fn tui_loop(
                                 }
                             }
                             _ => {}
-                        }
-                    } else if state.confirm_force_append {
-                        match key.code {
-                            KeyCode::Char('f') | KeyCode::Char('F') => {
-                                start_capture_thread(&mut state, tx.clone(), true);
-                                state.confirm_force_append = false;
-                            }
-                            _ => {
-                                state.confirm_force_append = false;
-                            }
                         }
                     } else {
                         match key.code {
@@ -362,17 +351,8 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
         ActiveTab::Capture => match key {
             KeyCode::Char(' ') => match state.capture_state {
                 CaptureState::Idle | CaptureState::Error(_) => {
-                    // Precheck: If in Append mode, check for interval mismatch
-                    if state.capture_mode == CaptureMode::Append && !state.sessions.is_empty() {
-                        let session = &state.sessions[state.selected_session_index];
-                        if let Some(ref metadata) = session.metadata {
-                            if metadata.interval_seconds != state.capture_interval.as_secs() {
-                                state.confirm_force_append = true;
-                                return;
-                            }
-                        }
-                    }
-                    start_capture_thread(state, tx.clone(), false);
+                    let force = state.capture_mode == CaptureMode::Append;
+                    start_capture_thread(state, tx.clone(), force);
                 }
                 CaptureState::Capturing { ref stop_handle, .. } => {
                     stop_handle.store(true, Ordering::SeqCst);
@@ -700,9 +680,20 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
         "[3] Sessions".to_string(),
         "[4] Diagnostics".to_string(),
     ];
+    let selected_session_name = if state.sessions.is_empty() {
+        "None".to_string()
+    } else {
+        state.sessions[state.selected_session_index].name.clone()
+    };
+    let lib_name = state.resolved_library_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Timelapse");
+    let header_title = format!(" Timelapse TUI | Lib: {} | Session: {} ", lib_name, selected_session_name);
+
     let tabs = Tabs::new(titles)
         .select(state.active_tab as usize)
-        .block(Block::default().borders(Borders::ALL).title(" Timelapse TUI "))
+        .block(Block::default().borders(Borders::ALL).title(header_title))
         .style(Style::default().fg(Color::Gray))
         .highlight_style(
             Style::default()
@@ -761,11 +752,6 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
     if let Some(ref input_str) = state.change_library_input {
         draw_library_modal(f, size, input_str);
     }
-
-    // Confirm Force Append Modal Overlay
-    if state.confirm_force_append {
-        draw_force_append_modal(f, size, state);
-    }
 }
 
 fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
@@ -789,14 +775,53 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
             }
         }
     };
-    let settings_text = format!(
-        "\n  Library Root:   {}\n\n  Interval:       {}s  (Use [Up/Down] to adjust)\n\n  Capture Target: {}\n                  (Use [D] to toggle display mode)\n\n  Capture Mode:   {}\n                  (Use [A] to toggle capture mode)",
-        state.resolved_library_path.display(),
-        state.capture_interval.as_secs(),
-        display_str,
-        mode_str
-    );
-    let settings_panel = Paragraph::new(settings_text)
+    let mut settings_lines = vec![
+        Line::raw(""),
+        Line::from(vec![
+            Span::raw("  Library Root:   "),
+            Span::raw(state.resolved_library_path.to_string_lossy().into_owned()),
+        ]),
+        Line::raw(""),
+        Line::from(vec![
+            Span::raw("  Interval:       "),
+            Span::styled(format!("{}s", state.capture_interval.as_secs()), Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("  (Use [Up/Down] to adjust)"),
+        ]),
+        Line::raw(""),
+        Line::from(vec![
+            Span::raw("  Capture Target: "),
+            Span::styled(display_str, Style::default().add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(vec![
+            Span::raw("                  (Use [D] to toggle display mode)"),
+        ]),
+        Line::raw(""),
+        Line::from(vec![
+            Span::raw("  Capture Mode:   "),
+            Span::styled(mode_str, Style::default().add_modifier(Modifier::BOLD)),
+        ]),
+        Line::from(vec![
+            Span::raw("                  (Use [A] to toggle capture mode)"),
+        ]),
+    ];
+
+    // Check for interval mismatch warning
+    if state.capture_mode == CaptureMode::Append && !state.sessions.is_empty() {
+        let session = &state.sessions[state.selected_session_index];
+        if let Some(ref metadata) = session.metadata {
+            if metadata.interval_seconds != state.capture_interval.as_secs() {
+                settings_lines.push(Line::raw(""));
+                settings_lines.push(Line::from(vec![
+                    Span::styled(
+                        format!("  ⚠ WARNING: Interval mismatch! Session uses {}s.", metadata.interval_seconds),
+                        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                    ),
+                ]));
+            }
+        }
+    }
+
+    let settings_panel = Paragraph::new(settings_lines)
         .block(Block::default().borders(Borders::ALL).title(" Settings "));
     f.render_widget(settings_panel, chunks[0]);
 
@@ -903,6 +928,11 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         return;
     }
 
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(8), Constraint::Length(8)])
+        .split(area);
+
     let header_cells = vec!["Session Name", "Frames", "Videos", "Directory Path"];
     let header = Row::new(header_cells)
         .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
@@ -948,7 +978,37 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     .header(header)
     .block(Block::default().borders(Borders::ALL).title(" Sessions List "));
 
-    f.render_widget(table, area);
+    f.render_widget(table, chunks[0]);
+
+    let selected = &state.sessions[state.selected_session_index];
+    let metadata_text = match &selected.metadata {
+        Some(m) => {
+            format!(
+                "  Started At:       {}\n\
+                   Capture Interval: {}s\n\
+                   Display Mode:     {:?}\n\
+                   Capture Backend:  {}\n\
+                   Frame Index Start: {}  (Padding: {})",
+                m.started_at.format("%Y-%m-%d %H:%M:%S"),
+                m.interval_seconds,
+                m.display,
+                m.capture_backend,
+                m.frame_start,
+                m.frame_padding
+            )
+        }
+        None => {
+            if let Some(ref err) = selected.metadata_error {
+                format!("  Error loading session.toml: {}", err)
+            } else {
+                "  No session.toml metadata file found.".to_string()
+            }
+        }
+    };
+
+    let metadata_panel = Paragraph::new(metadata_text)
+        .block(Block::default().borders(Borders::ALL).title(" Selected Session Metadata "));
+    f.render_widget(metadata_panel, chunks[1]);
 }
 
 fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
@@ -1078,29 +1138,6 @@ fn draw_library_modal(f: &mut ratatui::Frame, screen_area: Rect, input: &str) {
         input
     );
     let paragraph = Paragraph::new(prompt_text)
-        .block(block)
-        .style(Style::default().fg(Color::White));
-
-    f.render_widget(paragraph, modal_area);
-}
-
-fn draw_force_append_modal(f: &mut ratatui::Frame, screen_area: Rect, state: &TuiState) {
-    let modal_area = centered_rect(65, 30, screen_area);
-    f.render_widget(Clear, modal_area);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Interval Mismatch ")
-        .border_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
-
-    let session = &state.sessions[state.selected_session_index];
-    let session_interval_secs = session.metadata.as_ref().map_or(0, |m| m.interval_seconds);
-
-    let confirm_text = format!(
-        "\n  Warning: Capture interval mismatch!\n\n  Target session '{}'\n  was captured at {}s intervals.\n  Current TUI setting is {}s.\n\n  Appends with different intervals may affect timelapse speed.\n\n  Press [F] to force append anyway, or [Any other key] to cancel.",
-        session.name, session_interval_secs, state.capture_interval.as_secs()
-    );
-    let paragraph = Paragraph::new(confirm_text)
         .block(block)
         .style(Style::default().fg(Color::White));
 
