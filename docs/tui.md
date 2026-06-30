@@ -50,20 +50,23 @@ To keep the terminal user interface streamlined, several advanced configuration 
 - **Global Actions**:
   - `[Q]`: Safely exit the TUI (will request capture background loops to stop and restore terminal raw modes).
   - `[L]`: Change the active Timelapse library path (opens an interactive text input modal; disabled while capturing).
-- **Tab-Specific Keys**:
+- **Tab-Specific Keys & Layout features**:
   - **Capture Tab**:
     - `[Space]`: Start or stop capture.
     - `[Up/Down]`: Increase/decrease capture interval (when idle).
     - `[D]`: Toggle display target (All Displays / Primary Display only).
     - `[A]`: Toggle capture mode (Create New Session vs. Append to Selected Session).
+    - **Visual Warning**: Displays an inline yellow warning if you select Append mode with an interval mismatch.
   - **Render Tab**:
     - `[Enter]` or `[R]`: Start render for selected session.
     - `[Up/Down]`: Increase/decrease video FPS rate.
+    - **Calculations**: Displays the session's total frame count, estimated output video length, original capture interval, and real-world playback speedup multiplier (e.g. `90x`).
   - **Sessions Tab**:
     - `[Up/Down]`: Move row selection pointer.
     - `[O]`: Open selected session folder.
     - `[C]`: Trigger session clean popup modal (where `[D]`, `[F]`, `[V]`, `[A]` select target to clean / dry-run, other keys cancel).
     - `[A]`: Set Capture mode to Append for this session and jump to the Capture tab.
     - `[U]`: Reload sessions list from disk.
+    - **Metadata Panel**: Shows the detailed `session.toml` metadata (Start time, Capture interval, Display, Backend) in a dedicated panel at the bottom.
   - **Diagnostics Tab**:
     - `[D]` or `[U]`: Rerun diagnostic checks.
