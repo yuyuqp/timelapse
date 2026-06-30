@@ -22,9 +22,9 @@ enum Commands {
 
 #[derive(Debug, Parser)]
 struct CollectArgs {
-    /// Capture interval, such as 6s or 1m.
-    #[arg(long, value_parser = parse_duration, default_value = "6s")]
-    interval: Duration,
+    /// Capture interval, such as 6s or 1m. Append uses session metadata when omitted.
+    #[arg(long, value_parser = parse_duration)]
+    interval: Option<Duration>,
 
     /// Display target to capture.
     #[arg(long, value_enum, default_value_t = DisplayArg::All)]
@@ -41,6 +41,10 @@ struct CollectArgs {
     /// Append to an existing explicit session directory.
     #[arg(long)]
     append: bool,
+
+    /// Allow append to continue when existing session metadata is missing or mismatched.
+    #[arg(long)]
+    force: bool,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -79,9 +83,14 @@ fn run_collect(args: CollectArgs) -> anyhow::Result<()> {
         append: args.append,
         interval,
         display,
+        force: args.force,
     })?;
 
-    let capture_loop = CaptureLoop::new(interval, display);
+    for warning in session.warnings() {
+        eprintln!("{warning}");
+    }
+
+    let capture_loop = CaptureLoop::new(session.capture_interval(), display);
     install_ctrlc_handler(&capture_loop)?;
 
     let backend = XcapBackend;

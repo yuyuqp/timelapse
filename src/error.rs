@@ -10,7 +10,10 @@ pub enum TimelapseError {
     Io(#[from] std::io::Error),
 
     #[error("failed to write session metadata: {0}")]
-    Metadata(#[from] toml::ser::Error),
+    MetadataWrite(#[from] toml::ser::Error),
+
+    #[error("failed to read session metadata at {path}: {message}")]
+    MetadataRead { path: PathBuf, message: String },
 
     #[error("failed to save frame: {0}")]
     Image(#[from] image::ImageError),
@@ -26,4 +29,7 @@ pub enum TimelapseError {
 
     #[error("invalid argument: {0}")]
     InvalidArgument(String),
+
+    #[error("append metadata mismatch at {path}: {message}")]
+    AppendMetadataMismatch { path: PathBuf, message: String },
 }
