@@ -34,6 +34,8 @@ enum Commands {
     Doctor(DoctorArgs),
     /// Launch the interactive TUI.
     Tui(TuiArgs),
+    /// Print the default Timelapse library root path.
+    DefaultLibrary,
 }
 
 #[derive(Debug, Parser)]
@@ -174,6 +176,7 @@ pub fn run() -> anyhow::Result<()> {
         Commands::Clean(args) => args.library.clone(),
         Commands::Doctor(args) => args.library.clone(),
         Commands::Tui(args) => args.library.clone(),
+        Commands::DefaultLibrary => None,
     };
     let resolved_lib = library_arg
         .or_else(|| timelapse::Library::default_path().ok())
@@ -190,6 +193,7 @@ pub fn run() -> anyhow::Result<()> {
         Commands::Clean(args) => run_clean(args),
         Commands::Doctor(args) => run_doctor(args),
         Commands::Tui(args) => run_tui(args),
+        Commands::DefaultLibrary => run_default_library(),
     }
 }
 
@@ -406,6 +410,12 @@ fn run_doctor(args: DoctorArgs) -> anyhow::Result<()> {
 
 fn run_tui(args: TuiArgs) -> anyhow::Result<()> {
     timelapse::tui::run_tui(args.library)
+}
+
+fn run_default_library() -> anyhow::Result<()> {
+    let path = timelapse::Library::default_path()?;
+    println!("{}", path.display());
+    Ok(())
 }
 
 fn session_target(target: String, library: Option<PathBuf>) -> SessionTarget {
