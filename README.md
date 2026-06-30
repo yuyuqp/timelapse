@@ -202,6 +202,21 @@ cargo run -- tui
 cargo run -- tui --library ~/Videos/Timelapse
 ```
 
+### Welcome Screen
+![Welcome Screen](docs/screenshots/0-welcome.png)
+
+### Capture Tab
+![Capture Tab](docs/screenshots/1-capture.png)
+
+### Render Tab
+![Render Tab](docs/screenshots/2-render.png)
+
+### Sessions Tab
+![Sessions Tab](docs/screenshots/3-sessions.png)
+
+### Diagnostics Tab
+![Diagnostics Tab](docs/screenshots/4-diagnotics.png)
+
 The TUI provides a visual dashboard to manage capture intervals, select monitors, trigger ffmpeg rendering, manage sessions, and run doctor checks. See [docs/tui.md](docs/tui.md) for detailed keybindings and layout descriptions.
 
 ## Not Implemented Yet
