@@ -6,6 +6,7 @@ pub mod frame_store;
 pub mod manage;
 pub mod render;
 pub mod session;
+pub mod logging;
 pub mod tui;
 
 pub use capture::{CaptureBackend, CaptureLoop, CapturedImage, XcapBackend};

@@ -177,12 +177,27 @@ pub fn create_render_plan(options: RenderOptions) -> Result<RenderPlan> {
 }
 
 pub fn render(options: RenderOptions) -> Result<RenderResult> {
+    tracing::info!("Creating render plan for options: {:?}", options);
     let plan = create_render_plan(options)?;
-    run_ffmpeg(&plan)?;
-    Ok(RenderResult {
-        output_path: plan.output_path,
-        frame_count: plan.sequence.frame_count,
-    })
+    tracing::info!(
+        "Executing ffmpeg render plan (frames count: {}, output: {}, fps: {})",
+        plan.sequence.frame_count,
+        plan.output_path.display(),
+        plan.fps
+    );
+    match run_ffmpeg(&plan) {
+        Ok(_) => {
+            tracing::info!("Render completed successfully to {}", plan.output_path.display());
+            Ok(RenderResult {
+                output_path: plan.output_path,
+                frame_count: plan.sequence.frame_count,
+            })
+        }
+        Err(e) => {
+            tracing::error!("Ffmpeg rendering failed: {}", e);
+            Err(e)
+        }
+    }
 }
 
 pub fn run_ffmpeg(plan: &RenderPlan) -> Result<()> {
@@ -220,8 +235,10 @@ pub fn run_ffmpeg(plan: &RenderPlan) -> Result<()> {
 
     let output = command.output().map_err(|err| {
         if err.kind() == std::io::ErrorKind::NotFound {
+            tracing::error!("ffmpeg not found in PATH");
             TimelapseError::FfmpegNotFound
         } else {
+            tracing::error!("Failed to execute ffmpeg command: {}", err);
             TimelapseError::Io(err)
         }
     })?;

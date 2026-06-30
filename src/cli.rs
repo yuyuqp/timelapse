@@ -164,6 +164,24 @@ impl From<DisplayArg> for DisplayTarget {
 pub fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
+    // Setup logging depending on command type and library root path
+    let is_tui = matches!(cli.command, Commands::Tui(_));
+    let library_arg = match &cli.command {
+        Commands::Collect(args) => args.library.clone(),
+        Commands::Render(_) => None,
+        Commands::List(args) => args.library.clone(),
+        Commands::Open(args) => args.library.clone(),
+        Commands::Clean(args) => args.library.clone(),
+        Commands::Doctor(args) => args.library.clone(),
+        Commands::Tui(args) => args.library.clone(),
+    };
+    let resolved_lib = library_arg
+        .or_else(|| timelapse::Library::default_path().ok())
+        .unwrap_or_else(|| std::env::current_dir().unwrap().join("Timelapse"));
+
+    // Initialize tracing
+    timelapse::logging::init_logging(is_tui, &resolved_lib)?;
+
     match cli.command {
         Commands::Collect(args) => run_collect(args),
         Commands::Render(args) => run_render(args),

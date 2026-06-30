@@ -90,7 +90,9 @@ pub fn resolve_session_target(target: SessionTarget) -> Result<PathBuf> {
 }
 
 pub fn open_session(target: SessionTarget) -> Result<PathBuf> {
+    tracing::info!("Opening session for target: {:?}", target);
     let path = resolve_session_target(target)?;
+    tracing::info!("Opening system file manager at {:?}", path);
     open_file_manager(&path)?;
     Ok(path)
 }
@@ -130,17 +132,27 @@ pub fn clean_session(options: CleanOptions) -> Result<CleanResult> {
 }
 
 pub fn execute_clean_plan(plan: &CleanPlan) -> Result<CleanResult> {
+    tracing::info!(
+        "Executing clean plan for session {}: deleting {} frames, {} videos",
+        plan.session_path.display(),
+        plan.frames.len(),
+        plan.videos.len()
+    );
     for frame in &plan.frames {
+        tracing::debug!("Deleting frame file: {:?}", frame);
         fs::remove_file(frame)?;
     }
     for video in &plan.videos {
+        tracing::debug!("Deleting video file: {:?}", video);
         fs::remove_file(video)?;
     }
 
-    Ok(CleanResult {
+    let result = CleanResult {
         frames_deleted: plan.frames.len(),
         videos_deleted: plan.videos.len(),
-    })
+    };
+    tracing::info!("Clean execution complete. Result: {:?}", result);
+    Ok(result)
 }
 
 fn inspect_session(path: PathBuf) -> Result<SessionSummary> {

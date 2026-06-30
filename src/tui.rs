@@ -162,6 +162,7 @@ impl TuiState {
 }
 
 pub fn run_tui(library: Option<PathBuf>) -> anyhow::Result<()> {
+    tracing::info!("Launching interactive TUI...");
     let mut state = TuiState::new(library).map_err(|e| anyhow::anyhow!(e))?;
     state.refresh_sessions();
     state.refresh_diagnostics();
@@ -178,6 +179,7 @@ pub fn run_tui(library: Option<PathBuf>) -> anyhow::Result<()> {
     io::stdout().execute(LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
+    tracing::info!("TUI loop exited. Restored terminal raw modes.");
     res
 }
 
@@ -297,6 +299,7 @@ fn tui_loop(
         while let Ok(msg) = rx.try_recv() {
             match msg {
                 TuiMessage::CaptureStarted(stop_handle) => {
+                    tracing::info!("TUI background capture started successfully.");
                     state.capture_state = CaptureState::Capturing {
                         frames_collected: 0,
                         stop_handle,
@@ -304,28 +307,34 @@ fn tui_loop(
                     state.set_status("Capture session started");
                 }
                 TuiMessage::FrameCaptured(index) => {
+                    tracing::debug!("TUI received frame captured event (index: {}).", index);
                     if let CaptureState::Capturing { ref mut frames_collected, .. } = state.capture_state {
                         *frames_collected = index + 1;
                     }
                 }
                 TuiMessage::CaptureFinished(count) => {
+                    tracing::info!("TUI background capture stopped. Saved {} frames.", count);
                     state.capture_state = CaptureState::Idle;
                     state.set_status(format!("Capture stopped. Saved {} frames.", count));
                     state.refresh_sessions();
                 }
                 TuiMessage::CaptureError(err) => {
+                    tracing::error!("TUI background capture thread error: {}", err);
                     state.capture_state = CaptureState::Error(err.clone());
                     state.set_status(format!("Capture error: {}", err));
                 }
                 TuiMessage::RenderProgress(msg) => {
+                    tracing::debug!("TUI render progress: {}", msg);
                     state.render_state = RenderState::Rendering(msg);
                 }
                 TuiMessage::RenderFinished(msg) => {
+                    tracing::info!("TUI render thread finished: {}", msg);
                     state.render_state = RenderState::Success(msg.clone());
                     state.set_status("Render completed successfully");
                     state.refresh_sessions();
                 }
                 TuiMessage::RenderError(err) => {
+                    tracing::error!("TUI render thread error: {}", err);
                     state.render_state = RenderState::Error(err.clone());
                     state.set_status(format!("Render failed: {}", err));
                 }
@@ -508,6 +517,12 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
 }
 
 fn start_capture_thread(state: &mut TuiState, tx: Sender<TuiMessage>) {
+    tracing::info!(
+        "TUI: Starting capture thread background worker (mode: {:?}, interval: {}s, display: {:?})",
+        state.capture_mode,
+        state.capture_interval.as_secs(),
+        state.capture_display
+    );
     state.capture_state = CaptureState::Starting;
     let library_path = state.library_path.clone();
     let interval = state.capture_interval;
@@ -562,6 +577,7 @@ fn start_capture_thread(state: &mut TuiState, tx: Sender<TuiMessage>) {
 }
 
 fn start_render_thread(state: &mut TuiState, tx: Sender<TuiMessage>) {
+    tracing::info!("TUI: Starting render thread background worker...");
     state.render_state = RenderState::Rendering("Initializing render plan...".to_string());
     let target = state.get_selected_session_target();
     let render_target = match target {

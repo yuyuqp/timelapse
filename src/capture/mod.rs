@@ -68,19 +68,38 @@ impl CaptureLoop {
         F: FnMut(u64) -> Result<()>,
     {
         let mut captured = 0;
+        tracing::info!(
+            "Starting capture loop using backend '{}' (interval: {}s, display: {:?})",
+            backend.name(),
+            self.interval.as_secs(),
+            self.display
+        );
 
         while !self.should_stop.load(Ordering::SeqCst) {
             let frame_index = session.frame_store().next_index();
             let path = session.frame_store().next_frame_path();
-            let image = backend.capture(self.display)?;
-            image.save(&path)?;
-            session.frame_store_mut().advance();
-            captured += 1;
-            on_frame(frame_index)?;
+            tracing::debug!("Capturing frame index {} to {}", frame_index, path.display());
+            let image = backend.capture(self.display);
+            match image {
+                Ok(img) => {
+                    if let Err(e) = img.save(&path) {
+                        tracing::error!("Failed to save captured frame {}: {}", frame_index, e);
+                        return Err(e);
+                    }
+                    session.frame_store_mut().advance();
+                    captured += 1;
+                    on_frame(frame_index)?;
+                }
+                Err(e) => {
+                    tracing::error!("Failed to capture display: {}", e);
+                    return Err(e);
+                }
+            }
 
             sleep_interruptibly(self.interval, &self.should_stop);
         }
 
+        tracing::info!("Capture loop stopped. Total frames collected: {}", captured);
         Ok(captured)
     }
 }
