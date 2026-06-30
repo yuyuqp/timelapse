@@ -894,7 +894,7 @@ fn draw_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, session: &Sessi
         )
     } else {
         format!(
-            "\n  Clean session files from: {}\n\n  Select what to permanently delete:\n\n    [F] - Delete all screenshots/frames ({} files)\n    [V] - Delete rendered MP4 videos ({} files)\n    [A] - Delete BOTH frames and videos\n    [D] - Dry run (simulates cleaning both)\n\n  Press [Any other key] to cancel.",
+            "\n  Clean session files from: {}\n\n  Select an action:\n\n    [D] - Dry run (simulates cleaning both)\n    [F] - Delete all screenshots/frames ({} files)\n    [V] - Delete rendered MP4 videos ({} files)\n    [A] - Delete BOTH frames and videos\n\n  Press [Any other key] to cancel.",
             session.name, frames_count, videos_count
         )
     };
