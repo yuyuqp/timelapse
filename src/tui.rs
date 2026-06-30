@@ -105,7 +105,6 @@ struct TuiState {
     change_library_input: Option<String>,
     status_message: Option<(String, SystemTime)>,
     show_splash: bool,
-    splash_start_time: SystemTime,
 }
 
 impl TuiState {
@@ -132,7 +131,6 @@ impl TuiState {
             change_library_input: None,
             status_message: None,
             show_splash: true,
-            splash_start_time: SystemTime::now(),
         })
     }
 
@@ -195,10 +193,6 @@ fn tui_loop(
     let (tx, rx) = mpsc::channel::<TuiMessage>();
 
     loop {
-        // Auto-dismiss splash screen after 1.5 seconds
-        if state.show_splash && state.splash_start_time.elapsed().unwrap_or(Duration::ZERO) > Duration::from_millis(1500) {
-            state.show_splash = false;
-        }
 
         // Render TUI
         terminal.draw(|f| {
