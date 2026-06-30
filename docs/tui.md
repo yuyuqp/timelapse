@@ -63,6 +63,7 @@ To keep the terminal user interface streamlined, several advanced configuration 
     - `[Up/Down]`: Move row selection pointer.
     - `[O]`: Open selected session folder.
     - `[C]`: Trigger session clean popup modal (where `[D]`, `[F]`, `[V]`, `[A]` select target to clean / dry-run, other keys cancel).
+    - `[A]`: Set Capture mode to Append for this session and jump to the Capture tab.
     - `[U]`: Reload sessions list from disk.
   - **Diagnostics Tab**:
     - `[D]` or `[U]`: Rerun diagnostic checks.

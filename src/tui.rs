@@ -481,6 +481,14 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
                             state.confirm_clean_index = Some(state.selected_session_index);
                         }
                     }
+                    KeyCode::Char('a') | KeyCode::Char('A') => {
+                        if !state.sessions.is_empty() {
+                            state.capture_mode = CaptureMode::Append;
+                            state.active_tab = ActiveTab::Capture;
+                            let session_name = state.sessions[state.selected_session_index].name.clone();
+                            state.set_status(format!("Switched to Capture (Append mode for session: {})", session_name));
+                        }
+                    }
                     KeyCode::Char('u') | KeyCode::Char('U') => {
                         state.refresh_sessions();
                         state.set_status("Refreshed sessions list");
@@ -695,7 +703,7 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
             "[Tab] Switch Tabs | [Enter/R] Start Render | [Up/Down] Adjust FPS | [L] Change Library | [Q] Quit"
         }
         ActiveTab::Sessions => {
-            "[Tab] Switch Tabs | [Up/Down] Select Session | [O] Open Explorer | [C] Clean Session | [U] Refresh | [L] Change Library | [Q] Quit"
+            "[Tab] Switch Tabs | [Up/Down] Select Session | [O] Open Explorer | [C] Clean | [A] Append Mode | [U] Refresh | [L] Change Library | [Q] Quit"
         }
         ActiveTab::Diagnostics => {
             "[Tab] Switch Tabs | [D/U] Refresh Checks | [L] Change Library | [Q] Quit"
