@@ -543,7 +543,7 @@ fn start_capture_thread(state: &mut TuiState, tx: Sender<TuiMessage>) {
             append,
             interval: Some(interval),
             display,
-            force: true, // Force to skip interval validation prompts in TUI
+            force: append, // Force to skip interval validation prompts in TUI when appending
         };
 
         let mut session = match Session::open(open_options) {
