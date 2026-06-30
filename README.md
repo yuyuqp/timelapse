@@ -2,7 +2,7 @@
 
 Session-based screenshot collection and timelapse rendering.
 
-This project is being rewritten from the original Python implementation to Rust. The Python files are still present as historical reference, but the current active CLI is the Rust binary.
+This project is a Rust implementation of a session-based screenshot collection and timelapse rendering tool.
 
 ## Requirements
 
