@@ -81,6 +81,12 @@ enum RenderState {
     Error(String),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CaptureMode {
+    NewSession,
+    Append,
+}
+
 struct TuiState {
     active_tab: ActiveTab,
     library_path: Option<PathBuf>,
@@ -88,6 +94,7 @@ struct TuiState {
     capture_interval: Duration,
     capture_display: DisplayTarget,
     capture_state: CaptureState,
+    capture_mode: CaptureMode,
     render_fps: u32,
     render_state: RenderState,
     sessions: Vec<SessionSummary>,
@@ -112,6 +119,7 @@ impl TuiState {
             capture_interval: Duration::from_secs(6),
             capture_display: DisplayTarget::All,
             capture_state: CaptureState::Idle,
+            capture_mode: CaptureMode::NewSession,
             render_fps: 15,
             render_state: RenderState::Idle,
             sessions: Vec::new(),
@@ -348,6 +356,21 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
                     };
                 }
             }
+            KeyCode::Char('a') | KeyCode::Char('A') => {
+                if let CaptureState::Idle = state.capture_state {
+                    state.capture_mode = match state.capture_mode {
+                        CaptureMode::NewSession => {
+                            if state.sessions.is_empty() {
+                                state.set_status("No existing sessions found to append to!");
+                                CaptureMode::NewSession
+                            } else {
+                                CaptureMode::Append
+                            }
+                        }
+                        CaptureMode::Append => CaptureMode::NewSession,
+                    };
+                }
+            }
             KeyCode::Up => {
                 if let CaptureState::Idle = state.capture_state {
                     let secs = state.capture_interval.as_secs();
@@ -482,14 +505,22 @@ fn start_capture_thread(state: &mut TuiState, tx: Sender<TuiMessage>) {
     let interval = state.capture_interval;
     let display = state.capture_display;
 
+    // Resolve append mode target session path
+    let session_path = if state.capture_mode == CaptureMode::Append && !state.sessions.is_empty() {
+        Some(state.sessions[state.selected_session_index].path.clone())
+    } else {
+        None
+    };
+    let append = state.capture_mode == CaptureMode::Append && session_path.is_some();
+
     thread::spawn(move || {
         let open_options = SessionOpenOptions {
             library: library_path,
-            session: None,
-            append: false,
+            session: session_path,
+            append,
             interval: Some(interval),
             display,
-            force: false,
+            force: true, // Force to skip interval validation prompts in TUI
         };
 
         let mut session = match Session::open(open_options) {
@@ -658,7 +689,7 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
     // Footer Help keys
     let footer_text = match state.active_tab {
         ActiveTab::Capture => {
-            "[Tab] Switch Tabs | [Space] Start/Stop Capture | [Up/Down] Adjust Interval | [D] Toggle Display | [L] Change Library | [Q] Quit"
+            "[Tab] Switch Tabs | [Space] Start/Stop Capture | [Up/Down] Adjust Interval | [D] Toggle Display | [A] Toggle Mode | [L] Change Library | [Q] Quit"
         }
         ActiveTab::Render => {
             "[Tab] Switch Tabs | [Enter/R] Start Render | [Up/Down] Adjust FPS | [L] Change Library | [Q] Quit"
@@ -696,11 +727,22 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         DisplayTarget::All => "All Connected Displays",
         DisplayTarget::Primary => "Primary Display Only",
     };
+    let mode_str = match state.capture_mode {
+        CaptureMode::NewSession => "Create New Timestamped Session".to_string(),
+        CaptureMode::Append => {
+            if state.sessions.is_empty() {
+                "Append (Disabled: No sessions found)".to_string()
+            } else {
+                format!("Append to Session: {}", state.sessions[state.selected_session_index].name)
+            }
+        }
+    };
     let settings_text = format!(
-        "\n  Library Root:  {}\n\n  Interval:      {}s  (Use [Up/Down] to adjust)\n\n  Capture Target: {}\n                 (Use [D] to toggle display mode)",
+        "\n  Library Root:   {}\n\n  Interval:       {}s  (Use [Up/Down] to adjust)\n\n  Capture Target: {}\n                  (Use [D] to toggle display mode)\n\n  Capture Mode:   {}\n                  (Use [A] to toggle capture mode)",
         state.resolved_library_path.display(),
         state.capture_interval.as_secs(),
-        display_str
+        display_str,
+        mode_str
     );
     let settings_panel = Paragraph::new(settings_text)
         .block(Block::default().borders(Borders::ALL).title(" Settings "));

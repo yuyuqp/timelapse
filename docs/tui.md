@@ -27,9 +27,9 @@ It offers a graphical terminal dashboard containing four main navigation tabs: *
 
 To keep the terminal user interface streamlined, several advanced configuration flags from the CLI are omitted or automated in the TUI:
 
-1. **Custom Target Sessions & Append Mode (`collect`)**:
-   - **CLI**: Supports targeting specific session folders with `--session <path>`, appending new screenshots with `--append`, and bypassing checks with `--force`.
-   - **TUI**: Always initiates a fresh timestamped session directory under `library/sessions/`. It does not support manual session path naming or append modes.
+1. **Custom Session Names (`collect`)**:
+   - **CLI**: Supports targeting custom/explicitly-named session folders with `--session <path>`.
+   - **TUI**: Initiates either a fresh timestamped session directory under `library/sessions/` (default) or appends new frames to the currently selected session in the Sessions tab using `[A]` (Toggle Mode). Custom session naming is not supported in the TUI.
 
 2. **Custom Output Paths & Overwrite Prompts (`render`)**:
    - **CLI**: Supports configuring the exact output file path via `--output` and prevents accidental overrides unless `--overwrite` is explicitly supplied.
@@ -55,6 +55,7 @@ To keep the terminal user interface streamlined, several advanced configuration 
     - `[Space]`: Start or stop capture.
     - `[Up/Down]`: Increase/decrease capture interval (when idle).
     - `[D]`: Toggle display target (All Displays / Primary Display only).
+    - `[A]`: Toggle capture mode (Create New Session vs. Append to Selected Session).
   - **Render Tab**:
     - `[Enter]` or `[R]`: Start render for selected session.
     - `[Up/Down]`: Increase/decrease video FPS rate.
