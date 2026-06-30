@@ -47,4 +47,10 @@ pub enum TimelapseError {
 
     #[error("ffmpeg failed with status {status}: {stderr}")]
     FfmpegFailed { status: String, stderr: String },
+
+    #[error("no sessions were found in {0}")]
+    NoSessions(PathBuf),
+
+    #[error("failed to open file manager for {path}: {message}")]
+    OpenFileManager { path: PathBuf, message: String },
 }

@@ -7,7 +7,7 @@ use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
 use timelapse::{
     CaptureBackend, CaptureLoop, DEFAULT_RENDER_FPS, DisplayTarget, RenderOptions, RenderTarget,
-    SessionOpenOptions, XcapBackend,
+    SessionOpenOptions, SessionTarget, XcapBackend,
 };
 
 #[derive(Debug, Parser)]
@@ -24,6 +24,10 @@ enum Commands {
     Collect(CollectArgs),
     /// Render a session or frame directory to MP4.
     Render(RenderArgs),
+    /// List sessions in the Timelapse library.
+    List(ListArgs),
+    /// Open a session in the system file manager.
+    Open(OpenArgs),
 }
 
 #[derive(Debug, Parser)]
@@ -79,6 +83,23 @@ struct RenderArgs {
     verbose: bool,
 }
 
+#[derive(Debug, Parser)]
+struct ListArgs {
+    /// Timelapse library root.
+    #[arg(long)]
+    library: Option<PathBuf>,
+}
+
+#[derive(Debug, Parser)]
+struct OpenArgs {
+    /// Session target: latest or a session directory.
+    target: String,
+
+    /// Timelapse library root used with the latest target.
+    #[arg(long)]
+    library: Option<PathBuf>,
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum DisplayArg {
     All,
@@ -100,6 +121,8 @@ pub fn run() -> anyhow::Result<()> {
     match cli.command {
         Commands::Collect(args) => run_collect(args),
         Commands::Render(args) => run_render(args),
+        Commands::List(args) => run_list(args),
+        Commands::Open(args) => run_open(args),
     }
 }
 
@@ -182,6 +205,68 @@ fn run_render(args: RenderArgs) -> anyhow::Result<()> {
         result.frame_count,
         result.output_path.display()
     );
+    Ok(())
+}
+
+fn run_list(args: ListArgs) -> anyhow::Result<()> {
+    let sessions = timelapse::list_sessions(args.library)?;
+    if sessions.is_empty() {
+        println!("No sessions found.");
+        return Ok(());
+    }
+
+    for session in sessions {
+        let frame_text = session.frames.as_ref().map_or_else(
+            || "0 frames".to_string(),
+            |frames| {
+                format!(
+                    "{} frames ({}-{})",
+                    frames.frame_count, frames.start_number, frames.end_number
+                )
+            },
+        );
+        let video_text = match session.videos.len() {
+            0 => "0 videos".to_string(),
+            1 => "1 video".to_string(),
+            count => format!("{count} videos"),
+        };
+
+        println!("{}", session.name);
+        println!("  path: {}", session.path.display());
+        println!("  {frame_text}, {video_text}");
+
+        if let Some(metadata) = session.metadata {
+            println!(
+                "  started: {}, interval: {}s, display: {}",
+                metadata.started_at, metadata.interval_seconds, metadata.display
+            );
+        }
+        if let Some(error) = session.metadata_error {
+            println!("  metadata: {error}");
+        }
+        if let Some(error) = session.frame_error {
+            println!("  frames: {error}");
+        }
+    }
+
+    Ok(())
+}
+
+fn run_open(args: OpenArgs) -> anyhow::Result<()> {
+    if args.library.is_some() && args.target != "latest" {
+        anyhow::bail!("--library can only be used with `timelapse open latest`");
+    }
+
+    let target = if args.target == "latest" {
+        SessionTarget::Latest {
+            library: args.library,
+        }
+    } else {
+        SessionTarget::Path(PathBuf::from(args.target))
+    };
+
+    let path = timelapse::open_session(target)?;
+    eprintln!("opened {}", path.display());
     Ok(())
 }
 
