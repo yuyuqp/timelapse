@@ -32,6 +32,8 @@ enum Commands {
     Clean(CleanArgs),
     /// Check whether the local environment is ready for timelapse usage.
     Doctor(DoctorArgs),
+    /// Launch the interactive TUI.
+    Tui(TuiArgs),
 }
 
 #[derive(Debug, Parser)]
@@ -137,6 +139,13 @@ struct DoctorArgs {
     library: Option<PathBuf>,
 }
 
+#[derive(Debug, Parser)]
+struct TuiArgs {
+    /// Timelapse library root.
+    #[arg(long)]
+    library: Option<PathBuf>,
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum DisplayArg {
     All,
@@ -162,6 +171,7 @@ pub fn run() -> anyhow::Result<()> {
         Commands::Open(args) => run_open(args),
         Commands::Clean(args) => run_clean(args),
         Commands::Doctor(args) => run_doctor(args),
+        Commands::Tui(args) => run_tui(args),
     }
 }
 
@@ -374,6 +384,10 @@ fn run_doctor(args: DoctorArgs) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn run_tui(args: TuiArgs) -> anyhow::Result<()> {
+    timelapse::tui::run_tui(args.library)
 }
 
 fn session_target(target: String, library: Option<PathBuf>) -> SessionTarget {

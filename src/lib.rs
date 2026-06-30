@@ -6,6 +6,7 @@ pub mod frame_store;
 pub mod manage;
 pub mod render;
 pub mod session;
+pub mod tui;
 
 pub use capture::{CaptureBackend, CaptureLoop, CapturedImage, XcapBackend};
 pub use config::{DEFAULT_DISPLAY, DEFAULT_FRAME_PADDING, DEFAULT_FRAME_START, DEFAULT_INTERVAL};
