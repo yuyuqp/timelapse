@@ -1,3 +1,4 @@
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -99,9 +100,17 @@ fn run_collect(args: CollectArgs) -> anyhow::Result<()> {
     eprintln!("capture backend: {}", backend.name());
     eprintln!("press Ctrl+C to stop");
 
+    let mut stdout = io::stdout().lock();
     let captured = capture_loop
-        .run(&mut session, &backend)
+        .run_with_progress(&mut session, &backend, |frame_index| {
+            write!(stdout, "\rFrame {frame_index}")?;
+            stdout.flush()?;
+            Ok(())
+        })
         .context("capture loop failed")?;
+
+    writeln!(stdout)?;
+    stdout.flush()?;
 
     eprintln!("stopped after {captured} frame(s)");
     Ok(())

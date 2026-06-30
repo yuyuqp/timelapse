@@ -54,14 +54,29 @@ impl CaptureLoop {
     }
 
     pub fn run<B: CaptureBackend>(&self, session: &mut Session, backend: &B) -> Result<u64> {
+        self.run_with_progress(session, backend, |_| Ok(()))
+    }
+
+    pub fn run_with_progress<B, F>(
+        &self,
+        session: &mut Session,
+        backend: &B,
+        mut on_frame: F,
+    ) -> Result<u64>
+    where
+        B: CaptureBackend,
+        F: FnMut(u64) -> Result<()>,
+    {
         let mut captured = 0;
 
         while !self.should_stop.load(Ordering::SeqCst) {
+            let frame_index = session.frame_store().next_index();
             let path = session.frame_store().next_frame_path();
             let image = backend.capture(self.display)?;
             image.save(&path)?;
             session.frame_store_mut().advance();
             captured += 1;
+            on_frame(frame_index)?;
 
             sleep_interruptibly(self.interval, &self.should_stop);
         }
