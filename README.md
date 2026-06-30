@@ -47,6 +47,7 @@ timelapse list
 timelapse open latest
 timelapse clean latest --frames
 timelapse doctor
+timelapse tui
 ```
 
 When running through Cargo, place arguments after `--`:
@@ -54,6 +55,7 @@ When running through Cargo, place arguments after `--`:
 ```sh
 cargo run -- collect
 cargo run -- render latest
+cargo run -- tui
 ```
 
 ## Collect
@@ -179,9 +181,19 @@ This runs diagnostics on:
 - **ffmpeg**: Verifies `ffmpeg` is available in `PATH` and reports its version.
 - **Write Test**: Performs a conservative write/delete test with a temporary file in the library directory (or its nearest existing parent).
 
+## TUI
+
+Launch the interactive Terminal User Interface (TUI):
+
+```sh
+cargo run -- tui
+cargo run -- tui --library ~/Videos/Timelapse
+```
+
+The TUI provides a visual dashboard to manage capture intervals, select monitors, trigger ffmpeg rendering, manage sessions, and run doctor checks. See [docs/tui.md](docs/tui.md) for detailed keybindings and layout descriptions.
+
 ## Not Implemented Yet
 
-- TUI
 - Tauri GUI
 - Config file support
 
