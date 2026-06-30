@@ -353,7 +353,7 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
                             frames: true,
                             videos: false,
                         };
-                        execute_tui_clean(state, clean_options);
+                        execute_tui_clean(state, clean_options, false);
                         state.confirm_clean_index = None;
                         state.refresh_sessions();
                     }
@@ -363,7 +363,7 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
                             frames: false,
                             videos: true,
                         };
-                        execute_tui_clean(state, clean_options);
+                        execute_tui_clean(state, clean_options, false);
                         state.confirm_clean_index = None;
                         state.refresh_sessions();
                     }
@@ -373,7 +373,17 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
                             frames: true,
                             videos: true,
                         };
-                        execute_tui_clean(state, clean_options);
+                        execute_tui_clean(state, clean_options, false);
+                        state.confirm_clean_index = None;
+                        state.refresh_sessions();
+                    }
+                    KeyCode::Char('d') | KeyCode::Char('D') => {
+                        let clean_options = CleanOptions {
+                            target: SessionTarget::Path(session.path.clone()),
+                            frames: true,
+                            videos: true,
+                        };
+                        execute_tui_clean(state, clean_options, true);
                         state.confirm_clean_index = None;
                         state.refresh_sessions();
                     }
@@ -507,18 +517,26 @@ fn start_render_thread(state: &mut TuiState, tx: Sender<TuiMessage>) {
     });
 }
 
-fn execute_tui_clean(state: &mut TuiState, clean_options: CleanOptions) {
+fn execute_tui_clean(state: &mut TuiState, clean_options: CleanOptions, dry_run: bool) {
     match create_clean_plan(clean_options) {
         Ok(plan) => {
-            match execute_clean_plan(&plan) {
-                Ok(result) => {
-                    state.set_status(format!(
-                        "Cleaned {} frame(s) and {} video(s)",
-                        result.frames_deleted, result.videos_deleted
-                    ));
-                }
-                Err(e) => {
-                    state.set_status(format!("Clean execution failed: {}", e));
+            if dry_run {
+                state.set_status(format!(
+                    "Dry run: would delete {} frame(s) and {} video(s)",
+                    plan.frames.len(),
+                    plan.videos.len()
+                ));
+            } else {
+                match execute_clean_plan(&plan) {
+                    Ok(result) => {
+                        state.set_status(format!(
+                            "Cleaned {} frame(s) and {} video(s)",
+                            result.frames_deleted, result.videos_deleted
+                        ));
+                    }
+                    Err(e) => {
+                        state.set_status(format!("Clean execution failed: {}", e));
+                    }
                 }
             }
         }
@@ -831,7 +849,7 @@ fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
 }
 
 fn draw_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, session: &SessionSummary) {
-    let modal_area = centered_rect(65, 30, screen_area);
+    let modal_area = centered_rect(65, 32, screen_area);
     f.render_widget(Clear, modal_area);
 
     let block = Block::default()
@@ -843,7 +861,7 @@ fn draw_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, session: &Sessi
     let videos_count = session.videos.len();
 
     let confirm_text = format!(
-        "\n  Clean session files from: {}\n\n  Select what to permanently delete:\n\n    [F] - Delete all screenshots/frames ({} files)\n    [V] - Delete rendered MP4 videos ({} files)\n    [A] - Delete BOTH frames and videos\n\n  Press [Any other key] to cancel.",
+        "\n  Clean session files from: {}\n\n  Select what to permanently delete:\n\n    [F] - Delete all screenshots/frames ({} files)\n    [V] - Delete rendered MP4 videos ({} files)\n    [A] - Delete BOTH frames and videos\n    [D] - Dry run (simulates cleaning both)\n\n  Press [Any other key] to cancel.",
         session.name, frames_count, videos_count
     );
     let paragraph = Paragraph::new(confirm_text)
