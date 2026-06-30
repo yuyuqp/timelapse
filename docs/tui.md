@@ -23,6 +23,22 @@ It offers a graphical terminal dashboard containing four main navigation tabs: *
 | **Session Cleanup** | `timelapse clean <target>` | **Sessions Tab** (`[C]` key) | **CLI**: Destructive commands require flags like `--frames` / `--videos` and manual CLI prompt confirmation.<br>**TUI**: Pressing `[C]` on a session displays a red popup modal overlay on screen. Pressing `[Y]` confirms and permanently cleans up frames and videos; any other key cancels. |
 | **Environment Check** | `timelapse doctor` | **Diagnostics Tab** | **CLI**: Runs checks once and writes log lines to the terminal.<br>**TUI**: Automatically executes checks on load and displays results in a color-coded status panel (`[ok]` in green, `[warn]` in yellow, `[error]` in red). Diagnostic checks can be rerun at any time using `[D]` or `[U]`. |
 
+## CLI Features Missing in TUI
+
+To keep the terminal user interface streamlined, several advanced configuration flags from the CLI are omitted or automated in the TUI:
+
+1. **Custom Target Sessions & Append Mode (`collect`)**:
+   - **CLI**: Supports targeting specific session folders with `--session <path>`, appending new screenshots with `--append`, and bypassing checks with `--force`.
+   - **TUI**: Always initiates a fresh timestamped session directory under `library/sessions/`. It does not support manual session path naming or append modes.
+
+2. **Custom Output Paths & Overwrite Prompts (`render`)**:
+   - **CLI**: Supports configuring the exact output file path via `--output` and prevents accidental overrides unless `--overwrite` is explicitly supplied.
+   - **TUI**: Automatically renders to the default timestamped video file inside the session folder and automatically overwrites without prompting.
+
+3. **Granular File Cleanup (`clean`)**:
+   - **CLI**: Allows deleting only frames (`--frames`), only videos (`--videos`), running a `--dry-run`, or bypassing checks via `--yes`.
+   - **TUI**: The clean operation (`[C]`) is an all-or-nothing clean that deletes both frames and videos of the selected session simultaneously. It does not support dry-runs.
+
 ---
 
 ## Keyboard Controls & Navigation Reference
