@@ -41,7 +41,7 @@ impl Library {
             return Ok(video_dir.join("Timelapse"));
         }
 
-        if let Some(project_dirs) = ProjectDirs::from("com", "yuyue", "timelapse") {
+        if let Some(project_dirs) = ProjectDirs::from("com", "yuyuqp", "timelapse") {
             return Ok(project_dirs.data_dir().to_path_buf());
         }
 
