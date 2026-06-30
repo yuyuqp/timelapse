@@ -2,6 +2,9 @@
 
 Session-based screenshot collection and timelapse rendering.
 
+> [!WARNING]
+> This project is in very early alpha status. Please use it with care as features and session layouts are subject to change.
+
 This project is a Rust implementation of a session-based screenshot collection and timelapse rendering tool.
 
 ## Requirements
