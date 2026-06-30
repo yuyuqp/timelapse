@@ -104,6 +104,8 @@ struct TuiState {
     confirm_clean_index: Option<usize>,
     change_library_input: Option<String>,
     status_message: Option<(String, SystemTime)>,
+    show_splash: bool,
+    splash_start_time: SystemTime,
 }
 
 impl TuiState {
@@ -129,6 +131,8 @@ impl TuiState {
             confirm_clean_index: None,
             change_library_input: None,
             status_message: None,
+            show_splash: true,
+            splash_start_time: SystemTime::now(),
         })
     }
 
@@ -191,6 +195,11 @@ fn tui_loop(
     let (tx, rx) = mpsc::channel::<TuiMessage>();
 
     loop {
+        // Auto-dismiss splash screen after 1.5 seconds
+        if state.show_splash && state.splash_start_time.elapsed().unwrap_or(Duration::ZERO) > Duration::from_millis(1500) {
+            state.show_splash = false;
+        }
+
         // Render TUI
         terminal.draw(|f| {
             draw_ui(f, &state);
@@ -200,6 +209,10 @@ fn tui_loop(
         if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
+                    if state.show_splash {
+                        state.show_splash = false;
+                        continue;
+                    }
                     if let Some(ref mut input_str) = state.change_library_input {
                         match key.code {
                             KeyCode::Enter => {
@@ -659,6 +672,11 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
             .block(Block::default().borders(Borders::ALL).title(" Warning "))
             .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
         f.render_widget(warning, size);
+        return;
+    }
+
+    if state.show_splash {
+        draw_splash_screen(f, size, state);
         return;
     }
 
@@ -1181,4 +1199,51 @@ fn draw_library_modal(f: &mut ratatui::Frame, screen_area: Rect, input: &str) {
         .style(Style::default().fg(Color::White));
 
     f.render_widget(paragraph, modal_area);
+}
+
+fn draw_splash_screen(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan));
+
+    let logo = r#"
+  ████████ ██ ███    ███ ███████ ██       █████  ██████  ███████ ███████ 
+     ██    ██ ████  ████ ██      ██      ██   ██ ██   ██ ██      ██      
+     ██    ██ ██ ████ ██ █████   ██      ███████ ██████  ███████ █████   
+     ██    ██ ██  ██  ██ ██      ██      ██   ██ ██           ██ ██      
+     ██    ██ ██      ██ ███████ ███████ ██   ██ ██      ███████ ███████ 
+"#;
+
+    let mut logo_lines = vec![Line::raw("")];
+    for line in logo.lines() {
+        if !line.trim().is_empty() {
+            logo_lines.push(Line::from(vec![
+                Span::styled(line, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            ]));
+        }
+    }
+
+    logo_lines.push(Line::raw(""));
+    logo_lines.push(Line::from(vec![
+        Span::styled("    Session-based Screenshot Collector & Rendering Engine", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
+    ]));
+    logo_lines.push(Line::from(vec![
+        Span::styled("    Version 0.1.0", Style::default().fg(Color::Green))
+    ]));
+    logo_lines.push(Line::raw(""));
+    logo_lines.push(Line::from(vec![
+        Span::styled(format!("    Active Library: {}", state.resolved_library_path.display()), Style::default().fg(Color::DarkGray))
+    ]));
+    logo_lines.push(Line::raw(""));
+    logo_lines.push(Line::raw(""));
+    logo_lines.push(Line::from(vec![
+        Span::styled("    [ Press any key to start... ]", Style::default().fg(Color::Yellow).add_modifier(Modifier::DIM))
+    ]));
+
+    let paragraph = Paragraph::new(logo_lines)
+        .block(block)
+        .style(Style::default().fg(Color::White));
+
+    let center_area = centered_rect(90, 80, area);
+    f.render_widget(paragraph, center_area);
 }
