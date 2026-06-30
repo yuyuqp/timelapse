@@ -555,7 +555,7 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
             "\n\n  Terminal window size is too small!\n\n  \
              Current:  {}x{}\n  \
              Required: 80x20\n\n  \
-             Please resize or zoom out your terminal window.",
+             Please resize your window, decrease font size, or zoom out.",
             size.width, size.height
         );
         let warning = Paragraph::new(msg)
@@ -875,7 +875,7 @@ fn draw_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, session: &Sessi
 
     // Dynamic warning: If terminal size/modal area size is too small to render options
     if modal_area.height < 12 || modal_area.width < 50 {
-        let warning_text = "\n  ⚠ Warning:\n  Terminal window is too small\n  to display the clean options.\n\n  Please enlarge your window.";
+        let warning_text = "\n  ⚠ Warning:\n  Terminal window is too small\n  to display the clean options.\n\n  Please enlarge your window\n  or decrease your font size.";
         let paragraph = Paragraph::new(warning_text)
             .block(block)
             .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
