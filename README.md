@@ -2,6 +2,10 @@
 
 Cross-platform screenshot collection and timelapse rendering.
 
+## License
+
+MIT License. See [LICENSE](./LICENSE) for details.
+
 ## Project Structure
 
 - src layout package: src/timelapse

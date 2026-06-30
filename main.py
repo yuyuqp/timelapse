@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Yue Yu
+# SPDX-License-Identifier: MIT
+
 from pathlib import Path
 import sys
 
@@ -8,6 +11,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from timelapse.cli import main
+
 
 if __name__ == "__main__":
     main()
