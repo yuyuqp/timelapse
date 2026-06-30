@@ -877,10 +877,34 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         "latest".to_string()
     };
 
+    let frame_count = if state.sessions.is_empty() {
+        0
+    } else {
+        state.sessions[state.selected_session_index]
+            .frames
+            .as_ref()
+            .map_or(0, |f| f.frame_count)
+    };
+
+    let duration_desc = if frame_count > 0 && state.render_fps > 0 {
+        let secs = frame_count as f64 / state.render_fps as f64;
+        if secs < 60.0 {
+            format!("{:.1}s", secs)
+        } else {
+            let mins = (secs / 60.0).floor() as u32;
+            let remaining_secs = secs % 60.0;
+            format!("{}m {:.1}s", mins, remaining_secs)
+        }
+    } else {
+        "0.0s".to_string()
+    };
+
     let settings_text = format!(
-        "\n  Render Target:  {}\n                 (Selected from Sessions list tab)\n\n  Render FPS:     {} fps  (Use [Up/Down] to adjust)",
+        "\n  Render Target:  {}\n                 (Selected from Sessions list tab)\n\n  Render FPS:     {} fps  (Use [Up/Down] to adjust)\n\n  Total Frames:   {}\n  Est. Duration:  {}",
         target_name,
-        state.render_fps
+        state.render_fps,
+        frame_count,
+        duration_desc
     );
     let settings_panel = Paragraph::new(settings_text)
         .block(Block::default().borders(Borders::ALL).title(" Render Settings "));
