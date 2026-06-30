@@ -47,6 +47,7 @@ timelapse list
 timelapse open latest
 timelapse clean latest --frames
 timelapse doctor
+timelapse default-library
 timelapse tui
 ```
 
@@ -180,6 +181,14 @@ This runs diagnostics on:
 - **Screenshot Backend**: Verifies the capture backend (`xcap`), listing all detected displays, their resolutions, and primary status.
 - **ffmpeg**: Verifies `ffmpeg` is available in `PATH` and reports its version.
 - **Write Test**: Performs a conservative write/delete test with a temporary file in the library directory (or its nearest existing parent).
+
+## Default Library
+
+Print the resolved default library path:
+
+```sh
+cargo run -- default-library
+```
 
 ## TUI
 
