@@ -5,7 +5,10 @@ use std::time::Duration;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
-use timelapse::{CaptureBackend, CaptureLoop, DisplayTarget, SessionOpenOptions, XcapBackend};
+use timelapse::{
+    CaptureBackend, CaptureLoop, DEFAULT_RENDER_FPS, DisplayTarget, RenderOptions, RenderTarget,
+    SessionOpenOptions, XcapBackend,
+};
 
 #[derive(Debug, Parser)]
 #[command(name = "timelapse")]
@@ -19,6 +22,8 @@ pub struct Cli {
 enum Commands {
     /// Collect screenshots into a session folder.
     Collect(CollectArgs),
+    /// Render a session or frame directory to MP4.
+    Render(RenderArgs),
 }
 
 #[derive(Debug, Parser)]
@@ -48,6 +53,32 @@ struct CollectArgs {
     force: bool,
 }
 
+#[derive(Debug, Parser)]
+struct RenderArgs {
+    /// Render target: latest, a session directory, or a numbered PNG frames directory.
+    target: String,
+
+    /// Timelapse library root used with the latest target.
+    #[arg(long)]
+    library: Option<PathBuf>,
+
+    /// Output MP4 path.
+    #[arg(long)]
+    output: Option<PathBuf>,
+
+    /// Render frames per second.
+    #[arg(long, default_value_t = DEFAULT_RENDER_FPS)]
+    fps: u32,
+
+    /// Overwrite the output file if it already exists.
+    #[arg(long)]
+    overwrite: bool,
+
+    /// Show ffmpeg output while rendering.
+    #[arg(long)]
+    verbose: bool,
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum DisplayArg {
     All,
@@ -68,6 +99,7 @@ pub fn run() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Collect(args) => run_collect(args),
+        Commands::Render(args) => run_render(args),
     }
 }
 
@@ -113,6 +145,43 @@ fn run_collect(args: CollectArgs) -> anyhow::Result<()> {
     stdout.flush()?;
 
     eprintln!("stopped after {captured} frame(s)");
+    Ok(())
+}
+
+fn run_render(args: RenderArgs) -> anyhow::Result<()> {
+    if args.library.is_some() && args.target != "latest" {
+        anyhow::bail!("--library can only be used with `timelapse render latest`");
+    }
+
+    let target = if args.target == "latest" {
+        RenderTarget::Latest {
+            library: args.library,
+        }
+    } else {
+        RenderTarget::Path(PathBuf::from(args.target))
+    };
+
+    let options = RenderOptions {
+        target,
+        fps: args.fps,
+        output: args.output,
+        overwrite: args.overwrite,
+        verbose: args.verbose,
+    };
+
+    let plan = timelapse::render::create_render_plan(options.clone())?;
+    eprintln!("frames: {}", plan.sequence.frames_dir.display());
+    eprintln!("frames found: {}", plan.sequence.frame_count);
+    eprintln!("input pattern: {}", plan.sequence.input_pattern());
+    eprintln!("output: {}", plan.output_path.display());
+    eprintln!("fps: {}", plan.fps);
+
+    let result = timelapse::render::render(options).context("render failed")?;
+    eprintln!(
+        "rendered {} frame(s) to {}",
+        result.frame_count,
+        result.output_path.display()
+    );
     Ok(())
 }
 

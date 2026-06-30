@@ -32,4 +32,19 @@ pub enum TimelapseError {
 
     #[error("append metadata mismatch at {path}: {message}")]
     AppendMetadataMismatch { path: PathBuf, message: String },
+
+    #[error("invalid render target at {path}: {message}")]
+    InvalidRenderTarget { path: PathBuf, message: String },
+
+    #[error("invalid frame sequence at {path}: {message}")]
+    InvalidFrameSequence { path: PathBuf, message: String },
+
+    #[error("render output already exists: {0}")]
+    OutputExists(PathBuf),
+
+    #[error("ffmpeg was not found in PATH")]
+    FfmpegNotFound,
+
+    #[error("ffmpeg failed with status {status}: {stderr}")]
+    FfmpegFailed { status: String, stderr: String },
 }
