@@ -94,6 +94,7 @@ struct TuiState {
     selected_session_index: usize,
     diagnostics: Option<Vec<DoctorCheck>>,
     confirm_clean_index: Option<usize>,
+    change_library_input: Option<String>,
     status_message: Option<(String, SystemTime)>,
 }
 
@@ -117,6 +118,7 @@ impl TuiState {
             selected_session_index: 0,
             diagnostics: None,
             confirm_clean_index: None,
+            change_library_input: None,
             status_message: None,
         })
     }
@@ -187,60 +189,97 @@ fn tui_loop(
         if event::poll(Duration::from_millis(50))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') | KeyCode::Char('Q') => {
-                            // If capturing, stop it first
-                            if let CaptureState::Capturing { ref stop_handle, .. } = state.capture_state {
-                                stop_handle.store(true, Ordering::SeqCst);
+                    if let Some(ref mut input_str) = state.change_library_input {
+                        match key.code {
+                            KeyCode::Enter => {
+                                let new_path_str = input_str.trim().to_string();
+                                if !new_path_str.is_empty() {
+                                    let new_path = PathBuf::from(new_path_str);
+                                    state.library_path = Some(new_path.clone());
+                                    state.resolved_library_path = new_path;
+                                    state.refresh_sessions();
+                                    state.refresh_diagnostics();
+                                    state.set_status("Library path updated successfully");
+                                }
+                                state.change_library_input = None;
                             }
-                            break;
+                            KeyCode::Esc => {
+                                state.change_library_input = None;
+                            }
+                            KeyCode::Backspace => {
+                                input_str.pop();
+                            }
+                            KeyCode::Char(c) => {
+                                if input_str.len() < 120 {
+                                    input_str.push(c);
+                                }
+                            }
+                            _ => {}
                         }
-                        KeyCode::Tab => {
-                            state.active_tab = state.active_tab.next();
-                            if state.active_tab == ActiveTab::Sessions {
+                    } else {
+                        match key.code {
+                            KeyCode::Char('q') | KeyCode::Char('Q') => {
+                                // If capturing, stop it first
+                                if let CaptureState::Capturing { ref stop_handle, .. } = state.capture_state {
+                                    stop_handle.store(true, Ordering::SeqCst);
+                                }
+                                break;
+                            }
+                            KeyCode::Char('l') | KeyCode::Char('L') => {
+                                if let CaptureState::Idle | CaptureState::Error(_) = state.capture_state {
+                                    state.change_library_input = Some(state.resolved_library_path.to_string_lossy().into_owned());
+                                    state.confirm_clean_index = None;
+                                } else {
+                                    state.set_status("Cannot change library while capturing");
+                                }
+                            }
+                            KeyCode::Tab => {
+                                state.active_tab = state.active_tab.next();
+                                if state.active_tab == ActiveTab::Sessions {
+                                    state.refresh_sessions();
+                                } else if state.active_tab == ActiveTab::Diagnostics {
+                                    state.refresh_diagnostics();
+                                }
+                                state.confirm_clean_index = None;
+                            }
+                            KeyCode::Left => {
+                                state.active_tab = state.active_tab.prev();
+                                if state.active_tab == ActiveTab::Sessions {
+                                    state.refresh_sessions();
+                                } else if state.active_tab == ActiveTab::Diagnostics {
+                                    state.refresh_diagnostics();
+                                }
+                                state.confirm_clean_index = None;
+                            }
+                            KeyCode::Right => {
+                                state.active_tab = state.active_tab.next();
+                                if state.active_tab == ActiveTab::Sessions {
+                                    state.refresh_sessions();
+                                } else if state.active_tab == ActiveTab::Diagnostics {
+                                    state.refresh_diagnostics();
+                                }
+                                state.confirm_clean_index = None;
+                            }
+                            KeyCode::Char('1') => {
+                                state.active_tab = ActiveTab::Capture;
+                                state.confirm_clean_index = None;
+                            }
+                            KeyCode::Char('2') => {
+                                state.active_tab = ActiveTab::Render;
+                                state.confirm_clean_index = None;
+                            }
+                            KeyCode::Char('3') => {
+                                state.active_tab = ActiveTab::Sessions;
                                 state.refresh_sessions();
-                            } else if state.active_tab == ActiveTab::Diagnostics {
-                                state.refresh_diagnostics();
+                                state.confirm_clean_index = None;
                             }
-                            state.confirm_clean_index = None;
-                        }
-                        KeyCode::Left => {
-                            state.active_tab = state.active_tab.prev();
-                            if state.active_tab == ActiveTab::Sessions {
-                                state.refresh_sessions();
-                            } else if state.active_tab == ActiveTab::Diagnostics {
+                            KeyCode::Char('4') => {
+                                state.active_tab = ActiveTab::Diagnostics;
                                 state.refresh_diagnostics();
+                                state.confirm_clean_index = None;
                             }
-                            state.confirm_clean_index = None;
+                            _ => handle_tab_input(&mut state, &key.code, &tx),
                         }
-                        KeyCode::Right => {
-                            state.active_tab = state.active_tab.next();
-                            if state.active_tab == ActiveTab::Sessions {
-                                state.refresh_sessions();
-                            } else if state.active_tab == ActiveTab::Diagnostics {
-                                state.refresh_diagnostics();
-                            }
-                            state.confirm_clean_index = None;
-                        }
-                        KeyCode::Char('1') => {
-                            state.active_tab = ActiveTab::Capture;
-                            state.confirm_clean_index = None;
-                        }
-                        KeyCode::Char('2') => {
-                            state.active_tab = ActiveTab::Render;
-                            state.confirm_clean_index = None;
-                        }
-                        KeyCode::Char('3') => {
-                            state.active_tab = ActiveTab::Sessions;
-                            state.refresh_sessions();
-                            state.confirm_clean_index = None;
-                        }
-                        KeyCode::Char('4') => {
-                            state.active_tab = ActiveTab::Diagnostics;
-                            state.refresh_diagnostics();
-                            state.confirm_clean_index = None;
-                        }
-                        _ => handle_tab_input(&mut state, &key.code, &tx),
                     }
                 }
             }
@@ -619,16 +658,16 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
     // Footer Help keys
     let footer_text = match state.active_tab {
         ActiveTab::Capture => {
-            "[Tab] Switch Tabs | [Space] Start/Stop Capture | [Up/Down] Adjust Interval | [D] Toggle Display | [Q] Quit"
+            "[Tab] Switch Tabs | [Space] Start/Stop Capture | [Up/Down] Adjust Interval | [D] Toggle Display | [L] Change Library | [Q] Quit"
         }
         ActiveTab::Render => {
-            "[Tab] Switch Tabs | [Enter/R] Start Render | [Up/Down] Adjust FPS | [Q] Quit"
+            "[Tab] Switch Tabs | [Enter/R] Start Render | [Up/Down] Adjust FPS | [L] Change Library | [Q] Quit"
         }
         ActiveTab::Sessions => {
-            "[Tab] Switch Tabs | [Up/Down] Select Session | [O] Open Explorer | [C] Clean Session | [U] Refresh | [Q] Quit"
+            "[Tab] Switch Tabs | [Up/Down] Select Session | [O] Open Explorer | [C] Clean Session | [U] Refresh | [L] Change Library | [Q] Quit"
         }
         ActiveTab::Diagnostics => {
-            "[Tab] Switch Tabs | [D/U] Refresh Checks | [Q] Quit"
+            "[Tab] Switch Tabs | [D/U] Refresh Checks | [L] Change Library | [Q] Quit"
         }
     };
     let footer = Paragraph::new(footer_text)
@@ -638,6 +677,11 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
     // Confirm Clean Modal Overlay
     if let Some(index) = state.confirm_clean_index {
         draw_confirm_modal(f, size, &state.sessions[index]);
+    }
+
+    // Change Library Modal Overlay
+    if let Some(ref input_str) = state.change_library_input {
+        draw_library_modal(f, size, input_str);
     }
 }
 
@@ -924,4 +968,24 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
+}
+
+fn draw_library_modal(f: &mut ratatui::Frame, screen_area: Rect, input: &str) {
+    let modal_area = centered_rect(70, 20, screen_area);
+    f.render_widget(Clear, modal_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Change Library Path ")
+        .border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+
+    let prompt_text = format!(
+        "\n  Enter new Timelapse library root path:\n\n  > {}█\n\n  Press [Enter] to confirm, [Esc] to cancel.",
+        input
+    );
+    let paragraph = Paragraph::new(prompt_text)
+        .block(block)
+        .style(Style::default().fg(Color::White));
+
+    f.render_widget(paragraph, modal_area);
 }

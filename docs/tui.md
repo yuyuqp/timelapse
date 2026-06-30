@@ -49,6 +49,7 @@ To keep the terminal user interface streamlined, several advanced configuration 
   - `[1]`, `[2]`, `[3]`, `[4]`: Direct jump to Capture, Render, Sessions, or Diagnostics tab.
 - **Global Actions**:
   - `[Q]`: Safely exit the TUI (will request capture background loops to stop and restore terminal raw modes).
+  - `[L]`: Change the active Timelapse library path (opens an interactive text input modal; disabled while capturing).
 - **Tab-Specific Keys**:
   - **Capture Tab**:
     - `[Space]`: Start or stop capture.
