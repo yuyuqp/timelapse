@@ -345,23 +345,35 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
         },
         ActiveTab::Sessions => {
             if let Some(index) = state.confirm_clean_index {
+                let session = &state.sessions[index];
                 match key {
-                    KeyCode::Char('y') | KeyCode::Char('Y') => {
-                        let session = &state.sessions[index];
+                    KeyCode::Char('f') | KeyCode::Char('F') => {
+                        let clean_options = CleanOptions {
+                            target: SessionTarget::Path(session.path.clone()),
+                            frames: true,
+                            videos: false,
+                        };
+                        execute_tui_clean(state, clean_options);
+                        state.confirm_clean_index = None;
+                        state.refresh_sessions();
+                    }
+                    KeyCode::Char('v') | KeyCode::Char('V') => {
+                        let clean_options = CleanOptions {
+                            target: SessionTarget::Path(session.path.clone()),
+                            frames: false,
+                            videos: true,
+                        };
+                        execute_tui_clean(state, clean_options);
+                        state.confirm_clean_index = None;
+                        state.refresh_sessions();
+                    }
+                    KeyCode::Char('a') | KeyCode::Char('A') => {
                         let clean_options = CleanOptions {
                             target: SessionTarget::Path(session.path.clone()),
                             frames: true,
                             videos: true,
                         };
-                        match create_clean_plan(clean_options) {
-                            Ok(plan) => {
-                                let _ = execute_clean_plan(&plan);
-                                state.set_status("Cleaned session files");
-                            }
-                            Err(e) => {
-                                state.set_status(format!("Clean failed: {}", e));
-                            }
-                        }
+                        execute_tui_clean(state, clean_options);
                         state.confirm_clean_index = None;
                         state.refresh_sessions();
                     }
@@ -493,6 +505,27 @@ fn start_render_thread(state: &mut TuiState, tx: Sender<TuiMessage>) {
             }
         }
     });
+}
+
+fn execute_tui_clean(state: &mut TuiState, clean_options: CleanOptions) {
+    match create_clean_plan(clean_options) {
+        Ok(plan) => {
+            match execute_clean_plan(&plan) {
+                Ok(result) => {
+                    state.set_status(format!(
+                        "Cleaned {} frame(s) and {} video(s)",
+                        result.frames_deleted, result.videos_deleted
+                    ));
+                }
+                Err(e) => {
+                    state.set_status(format!("Clean execution failed: {}", e));
+                }
+            }
+        }
+        Err(e) => {
+            state.set_status(format!("Clean plan failed: {}", e));
+        }
+    }
 }
 
 fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
@@ -798,7 +831,7 @@ fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
 }
 
 fn draw_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, session: &SessionSummary) {
-    let modal_area = centered_rect(60, 25, screen_area);
+    let modal_area = centered_rect(65, 30, screen_area);
     f.render_widget(Clear, modal_area);
 
     let block = Block::default()
@@ -806,9 +839,12 @@ fn draw_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, session: &Sessi
         .title(" Clean Confirmation ")
         .border_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
 
+    let frames_count = session.frames.as_ref().map_or(0, |f| f.frame_count);
+    let videos_count = session.videos.len();
+
     let confirm_text = format!(
-        "\n  Clean all frames and rendered videos from:\n\n  {}\n\n  This action will permanently delete these files.\n\n  Are you sure you want to proceed?\n\n  Press [Y] to confirm clean, or [Any other key] to cancel.",
-        session.name
+        "\n  Clean session files from: {}\n\n  Select what to permanently delete:\n\n    [F] - Delete all screenshots/frames ({} files)\n    [V] - Delete rendered MP4 videos ({} files)\n    [A] - Delete BOTH frames and videos\n\n  Press [Any other key] to cancel.",
+        session.name, frames_count, videos_count
     );
     let paragraph = Paragraph::new(confirm_text)
         .block(block)
