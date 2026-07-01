@@ -34,6 +34,8 @@ enum Commands {
     Doctor(DoctorArgs),
     /// Launch the interactive TUI.
     Tui(TuiArgs),
+    /// Manage frame exclusions for a session or frames directory.
+    Exclude(ExcludeArgs),
     /// Print the default Timelapse library root path.
     DefaultLibrary,
 }
@@ -89,6 +91,28 @@ struct RenderArgs {
     /// Show ffmpeg output while rendering.
     #[arg(long)]
     verbose: bool,
+
+    /// Comma-separated list of frame numbers or ranges to exclude (e.g. 1,2,5-10).
+    #[arg(long)]
+    exclude: Option<String>,
+}
+
+#[derive(Debug, Parser)]
+struct ExcludeArgs {
+    /// Target session directory or frames directory.
+    target: String,
+
+    /// View/show the current exclusions list.
+    #[arg(long, short)]
+    show: bool,
+
+    /// Add new exclusions (frame numbers, ranges, or file paths).
+    #[arg(long, short, num_args = 1..)]
+    add: Option<Vec<String>>,
+
+    /// Timelapse library root used with the latest target.
+    #[arg(long)]
+    library: Option<PathBuf>,
 }
 
 #[derive(Debug, Parser)]
@@ -176,6 +200,7 @@ pub fn run() -> anyhow::Result<()> {
         Commands::Clean(args) => args.library.clone(),
         Commands::Doctor(args) => args.library.clone(),
         Commands::Tui(args) => args.library.clone(),
+        Commands::Exclude(args) => args.library.clone(),
         Commands::DefaultLibrary => None,
     };
     let resolved_lib = library_arg
@@ -193,6 +218,7 @@ pub fn run() -> anyhow::Result<()> {
         Commands::Clean(args) => run_clean(args),
         Commands::Doctor(args) => run_doctor(args),
         Commands::Tui(args) => run_tui(args),
+        Commands::Exclude(args) => run_exclude(args),
         Commands::DefaultLibrary => run_default_library(),
     }
 }
@@ -255,18 +281,36 @@ fn run_render(args: RenderArgs) -> anyhow::Result<()> {
         RenderTarget::Path(PathBuf::from(args.target))
     };
 
+    let exclude = args.exclude
+        .map(|raw| timelapse::parse_exclusions(&raw))
+        .transpose()
+        .map_err(|e| anyhow::anyhow!(e))
+        .context("invalid exclude argument")?;
+
     let options = RenderOptions {
         target,
         fps: args.fps,
         output: args.output,
         overwrite: args.overwrite,
         verbose: args.verbose,
+        exclude,
     };
 
     let plan = timelapse::render::create_render_plan(options.clone())?;
+
     eprintln!("frames: {}", plan.sequence.frames_dir.display());
+    let excluded_count = plan.exclude.iter().filter(|&&x| x >= plan.sequence.start_number && x <= plan.sequence.end_number).count();
+    let actual_count = plan.sequence.frame_count.saturating_sub(excluded_count);
     eprintln!("frames found: {}", plan.sequence.frame_count);
-    eprintln!("input pattern: {}", plan.sequence.input_pattern());
+    if excluded_count > 0 {
+        eprintln!("frames excluded: {}", excluded_count);
+        eprintln!("frames to render: {}", actual_count);
+    }
+    if plan.exclude.is_empty() {
+        eprintln!("input pattern: {}", plan.sequence.input_pattern());
+    } else {
+        eprintln!("input: concat list");
+    }
     eprintln!("output: {}", plan.output_path.display());
     eprintln!("fps: {}", plan.fps);
 
@@ -276,6 +320,83 @@ fn run_render(args: RenderArgs) -> anyhow::Result<()> {
         result.frame_count,
         result.output_path.display()
     );
+    Ok(())
+}
+
+fn run_exclude(args: ExcludeArgs) -> anyhow::Result<()> {
+    if args.library.is_some() && args.target != "latest" {
+        anyhow::bail!("--library can only be used with `timelapse exclude latest`");
+    }
+
+    let target = if args.target == "latest" {
+        RenderTarget::Latest { library: args.library }
+    } else {
+        RenderTarget::Path(PathBuf::from(args.target))
+    };
+
+    let target_path = timelapse::resolve_target_path(target)?;
+    let exclude_file_path = target_path.join("exclude.txt");
+
+    if args.show && args.add.is_some() {
+        anyhow::bail!("--show and --add cannot be used together");
+    }
+
+    if args.show {
+        if exclude_file_path.is_file() {
+            let content = std::fs::read_to_string(&exclude_file_path)?;
+            let parsed = timelapse::parse_exclusions(&content)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            if parsed.is_empty() {
+                println!("No exclusions set.");
+            } else {
+                println!("Current exclusions in {}:", exclude_file_path.display());
+                for val in parsed {
+                    println!("  {}", val);
+                }
+            }
+        } else {
+            println!("No exclusions set.");
+        }
+        return Ok(());
+    }
+
+    if let Some(new_exclusions) = args.add {
+        let mut exclusions = Vec::new();
+        if exclude_file_path.is_file() {
+            let content = std::fs::read_to_string(&exclude_file_path)?;
+            if let Ok(parsed) = timelapse::parse_exclusions(&content) {
+                exclusions = parsed;
+            }
+        }
+
+        let raw_input = new_exclusions.join(" ");
+        let mut parsed_new = timelapse::parse_exclusions(&raw_input)
+            .map_err(|e| anyhow::anyhow!(e))
+            .context("invalid exclusions specified")?;
+
+        exclusions.append(&mut parsed_new);
+        exclusions.sort_unstable();
+        exclusions.dedup();
+
+        let mut content = String::new();
+        for val in &exclusions {
+            content.push_str(&format!("{}\n", val));
+        }
+        std::fs::write(&exclude_file_path, content)?;
+        println!(
+            "Saved exclusions to {}. Total exclusions active: {}",
+            exclude_file_path.display(),
+            exclusions.len()
+        );
+        return Ok(());
+    }
+
+    if !exclude_file_path.exists() {
+        std::fs::write(&exclude_file_path, "")?;
+    }
+    timelapse::open_file_manager_select(&exclude_file_path)?;
+    println!("Opened file manager showing {}", exclude_file_path.display());
+
     Ok(())
 }
 

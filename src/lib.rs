@@ -16,10 +16,11 @@ pub use frame_store::FrameStore;
 pub use manage::{
     CleanOptions, CleanPlan, CleanResult, SessionSummary, SessionTarget, clean_session,
     create_clean_plan, execute_clean_plan, list_sessions, open_session, resolve_session_target,
+    open_file_manager_select,
 };
 pub use render::{
-    DEFAULT_RENDER_FPS, FrameSequence, RenderOptions, RenderPlan, RenderResult, RenderSourceKind,
-    RenderTarget,
+    DEFAULT_RENDER_FPS, parse_exclusions, resolve_frames_dir, resolve_target_path, FrameSequence,
+    RenderOptions, RenderPlan, RenderResult, RenderSourceKind, RenderTarget,
 };
 pub use session::{
     DisplayTarget, Library, Session, SessionMetadata, SessionOpenOptions, SessionPaths,

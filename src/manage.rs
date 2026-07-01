@@ -287,6 +287,32 @@ fn ensure_recognized_session(path: &Path) -> Result<()> {
     })
 }
 
+pub fn open_file_manager_select(file_path: &Path) -> Result<()> {
+    let mut command = if cfg!(target_os = "windows") {
+        let mut command = Command::new("explorer");
+        command.arg(format!("/select,{}", file_path.display()));
+        command
+    } else if cfg!(target_os = "macos") {
+        let mut command = Command::new("open");
+        command.arg("-R");
+        command.arg(file_path);
+        command
+    } else {
+        let parent = file_path.parent().unwrap_or(file_path);
+        let mut command = Command::new("xdg-open");
+        command.arg(parent);
+        command
+    };
+
+    command
+        .spawn()
+        .map_err(|err| TimelapseError::OpenFileManager {
+            path: file_path.to_path_buf(),
+            message: err.to_string(),
+        })?;
+    Ok(())
+}
+
 fn open_file_manager(path: &Path) -> Result<()> {
     let mut command = if cfg!(target_os = "windows") {
         let mut command = Command::new("explorer");

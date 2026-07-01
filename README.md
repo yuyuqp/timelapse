@@ -52,6 +52,7 @@ timelapse clean latest --frames
 timelapse doctor
 timelapse default-library
 timelapse tui
+timelapse exclude latest
 ```
 
 When running through Cargo, place arguments after `--`:
@@ -59,6 +60,7 @@ When running through Cargo, place arguments after `--`:
 ```sh
 cargo run -- collect
 cargo run -- render latest
+cargo run -- exclude latest
 cargo run -- tui
 ```
 
@@ -116,13 +118,18 @@ cargo run -- render ./my-session --fps 15
 cargo run -- render ./my-session --output ./out.mp4
 cargo run -- render ./my-session --overwrite
 cargo run -- render ./my-session --verbose
+cargo run -- render ./my-session --exclude 1,2,5-10
 ```
 
 Rendering:
 
 - Uses external `ffmpeg`.
 - Infers frame padding and start number from numbered PNG files.
-- Fails if there are missing frame numbers.
+- Fails if there are missing frame numbers (unless they are excluded).
+- Supports excluding frames using:
+  - `--exclude <FRAMES>` CLI flag (e.g., `1,2,5-10` or a space-separated list of dragged-and-dropped file paths).
+  - An `exclude.txt` file in the target directory (with frame numbers/ranges, e.g. `1-10` or `1,2,5-10`, and `#` comments).
+- Uses FFmpeg's `concat` demuxer under the hood when exclusions are active.
 - Does not require `session.toml`.
 - Does not overwrite existing output unless `--overwrite` is passed.
 - Hides ffmpeg output by default; use `--verbose` to show it.
@@ -168,6 +175,29 @@ Clean is intentionally conservative:
 - It deletes MP4 videos from the session directory.
 - `--dry-run` shows the deletion plan without deleting files.
 - It asks for confirmation unless `--yes` is passed.
+
+## Exclude
+
+Manage frame exclusions for a session or frames directory using `exclude.txt` as the single source of truth:
+
+```sh
+# View current exclusions (explicitly)
+cargo run -- exclude latest --show
+cargo run -- exclude ./my-session --show
+
+# Add exclusions (merges new exclusions with existing ones)
+cargo run -- exclude latest --add 1 2 5-10
+cargo run -- exclude ./my-session --add C:\path\001.png C:\path\002.png
+
+# Open the folder with exclude.txt selected in the system file manager
+cargo run -- exclude latest
+cargo run -- exclude ./my-session
+```
+
+`exclude` is dedicated to managing persistent exclusions:
+- `--show` (or `-s`): Prints current exclusions in `exclude.txt`.
+- `--add` (or `-a`): Appends/merges new exclusions (frame numbers, ranges, or file paths) to `exclude.txt`, maintaining them sorted and de-duplicated.
+- Default Behavior: Running without `--show` or `--add` creates `exclude.txt` if it doesn't exist and opens the system file manager with the `exclude.txt` file highlighted/selected for manual editing. (Deletion is not supported directly in the CLI; do it by opening `exclude.txt` via this command).
 
 ## Doctor
 

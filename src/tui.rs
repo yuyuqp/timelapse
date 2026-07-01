@@ -24,7 +24,7 @@ use crate::manage::{
     create_clean_plan, execute_clean_plan, list_sessions, open_session, CleanOptions,
     SessionSummary, SessionTarget,
 };
-use crate::render::{render, RenderOptions, RenderTarget};
+use crate::render::{render, RenderOptions, RenderTarget, parse_exclusions};
 use crate::session::{DisplayTarget, Library, Session, SessionOpenOptions};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -603,6 +603,7 @@ fn start_render_thread(state: &mut TuiState, tx: Sender<TuiMessage>) {
             output: None,
             overwrite: true,
             verbose: false,
+            exclude: None,
         };
 
         let _ = tx.send(TuiMessage::RenderProgress("Running ffmpeg...".to_string()));
@@ -898,8 +899,29 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
             .map_or(0, |f| f.frame_count)
     };
 
-    let duration_desc = if frame_count > 0 && state.render_fps > 0 {
-        let secs = frame_count as f64 / state.render_fps as f64;
+    let mut exclude_count = 0;
+    if !state.sessions.is_empty() && state.selected_session_index < state.sessions.len() {
+        let session = &state.sessions[state.selected_session_index];
+        let mut exclusions = Vec::new();
+        let exclude_file_path = session.path.join("exclude.txt");
+        if exclude_file_path.is_file() {
+            if let Ok(content) = std::fs::read_to_string(&exclude_file_path) {
+                if let Ok(parsed) = parse_exclusions(&content) {
+                    exclusions = parsed;
+                }
+            }
+        }
+        if let Some(ref sequence) = session.frames {
+            exclude_count = exclusions.iter()
+                .filter(|&&x| x >= sequence.start_number && x <= sequence.end_number)
+                .count();
+        }
+    }
+
+    let actual_frame_count = frame_count.saturating_sub(exclude_count);
+
+    let duration_desc = if actual_frame_count > 0 && state.render_fps > 0 {
+        let secs = actual_frame_count as f64 / state.render_fps as f64;
         if secs < 60.0 {
             format!("{:.1}s", secs)
         } else {
@@ -924,15 +946,28 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         }
     };
 
-    let settings_text = format!(
-        "\n  Render Target:  {}\n                 (Selected from Sessions list tab)\n\n  Render FPS:     {} fps  (Use [Up/Down] to adjust)\n\n  Total Frames:   {}\n  Est. Duration:  {}\n  Cap. Interval:  {}\n  Playback Speed: {}",
+    let mut settings_text = format!(
+        "\n  Render Target:  {}\n                 (Selected from Sessions list tab)\n\n  Render FPS:     {} fps  (Use [Up/Down] to adjust)\n\n  Total Frames:   {}",
         target_name,
         state.render_fps,
-        frame_count,
+        frame_count
+    );
+
+    if exclude_count > 0 {
+        settings_text.push_str(&format!(
+            "\n  Exclusions:     {} frame(s)\n  Render Frames:  {}",
+            exclude_count,
+            actual_frame_count
+        ));
+    }
+
+    settings_text.push_str(&format!(
+        "\n  Est. Duration:  {}\n  Cap. Interval:  {}\n  Playback Speed: {}",
         duration_desc,
         interval_desc,
         speed_desc
-    );
+    ));
+
     let settings_panel = Paragraph::new(settings_text)
         .block(Block::default().borders(Borders::ALL).title(" Render Settings "));
     f.render_widget(settings_panel, chunks[0]);
@@ -1032,7 +1067,7 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     f.render_widget(table, chunks[0]);
 
     let selected = &state.sessions[state.selected_session_index];
-    let metadata_text = match &selected.metadata {
+    let mut metadata_text = match &selected.metadata {
         Some(m) => {
             format!(
                 "  Started At:       {}\n\
@@ -1056,6 +1091,23 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
             }
         }
     };
+
+    let mut exclusions = Vec::new();
+    let exclude_file_path = selected.path.join("exclude.txt");
+    if exclude_file_path.is_file() {
+        if let Ok(content) = std::fs::read_to_string(&exclude_file_path) {
+            if let Ok(parsed) = parse_exclusions(&content) {
+                exclusions = parsed;
+            }
+        }
+    }
+
+    if !exclusions.is_empty() {
+        metadata_text.push_str(&format!(
+            "\n  Exclusions:       {} frame(s) active",
+            exclusions.len()
+        ));
+    }
 
     let metadata_panel = Paragraph::new(metadata_text)
         .block(Block::default().borders(Borders::ALL).title(" Selected Session Metadata "));

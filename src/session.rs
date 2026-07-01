@@ -303,7 +303,7 @@ fn write_metadata(path: &Path, metadata: &SessionMetadata) -> Result<()> {
     Ok(())
 }
 
-fn read_existing_metadata(path: &Path) -> std::result::Result<SessionMetadata, String> {
+pub fn read_existing_metadata(path: &Path) -> std::result::Result<SessionMetadata, String> {
     let text = fs::read_to_string(path)
         .map_err(|err| format!("could not read {}: {err}", path.display()))?;
     toml::from_str(&text).map_err(|err| format!("could not parse {}: {err}", path.display()))
