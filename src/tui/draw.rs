@@ -179,10 +179,10 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         }
     };
 
-    let lib_label = if is_modern && use_unicode { "📂 Library Root:     " } else { "  Library Root:       " };
-    let int_label = if is_modern && use_unicode { "⏱ Interval:         " } else { "  Interval:           " };
-    let tgt_label = if is_modern && use_unicode { "🖥 Capture Target:   " } else { "  Capture Target:     " };
-    let mod_label = if is_modern && use_unicode { "⚙ Capture Mode:     " } else { "  Capture Mode:       " };
+    let lib_label = if is_modern && use_unicode { "📂 Library Root:      " } else { "  Library Root:       " };
+    let int_label = if is_modern && use_unicode { "⏱  Interval:         " } else { "  Interval:           " };
+    let tgt_label = if is_modern && use_unicode { "🖥  Capture Target:   " } else { "  Capture Target:     " };
+    let mod_label = if is_modern && use_unicode { "⚙  Capture Mode:     " } else { "  Capture Mode:       " };
 
     let mut settings_lines = vec![
         Line::raw(""),
@@ -202,7 +202,7 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
             Span::styled(display_str, Style::default().add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
-            Span::raw("                    (Use [D] to toggle display mode)"),
+            Span::raw("                      (Use [D] to toggle display mode)"),
         ]),
         Line::raw(""),
         Line::from(vec![
@@ -210,7 +210,7 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
             Span::styled(mode_str, Style::default().add_modifier(Modifier::BOLD)),
         ]),
         Line::from(vec![
-            Span::raw("                    (Use [A] to toggle capture mode)"),
+            Span::raw("                      (Use [A] to toggle capture mode)"),
         ]),
     ];
 
@@ -244,17 +244,17 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     // Right Panel: Capture Status
     let (status_title, status_style, status_desc) = match &state.capture_state {
         CaptureState::Idle => (
-            if is_modern && use_unicode { "⏸ IDLE" } else { "● IDLE" },
+            "● IDLE",
             Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD),
             "\n\n  Press [Space] to start capturing screenshots.".to_string(),
         ),
         CaptureState::Starting => (
-            if is_modern && use_unicode { "🔄 STARTING..." } else { "● STARTING..." },
+            "● STARTING...",
             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
             "\n\n  Initializing screen capture backend...".to_string(),
         ),
         CaptureState::Capturing { frames_collected, .. } => (
-            if is_modern && use_unicode { "🔴 RECORDING" } else { "● RECORDING" },
+            "● RECORDING",
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             format!(
                 "\n\n  Screenshots are being collected.\n\n  Frames collected: {}\n\n  Press [Space] to stop capturing.",
@@ -262,7 +262,7 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
             ),
         ),
         CaptureState::Error(err) => (
-            if is_modern && use_unicode { "❌ ERROR" } else { "● ERROR" },
+            "● ERROR",
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             format!("\n\n  Capture failed:\n\n  {}", err),
         ),
@@ -365,17 +365,17 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         }
     };
 
-    let lbl_target = if is_modern && use_unicode { "🎯 Render Target:    " } else { "  Render Target:      " };
-    let lbl_fps = if is_modern && use_unicode { "⚡ Render FPS:        " } else { "  Render FPS:         " };
-    let lbl_total = if is_modern && use_unicode { "🎞 Total Frames:      " } else { "  Total Frames:       " };
+    let lbl_target = if is_modern && use_unicode { "🎯 Render Target:     " } else { "  Render Target:      " };
+    let lbl_fps = if is_modern && use_unicode { "⚡  Render FPS:        " } else { "  Render FPS:         " };
+    let lbl_total = if is_modern && use_unicode { "🎞  Total Frames:      " } else { "  Total Frames:       " };
     let lbl_excl = if is_modern && use_unicode { "🚫 Exclusions:        " } else { "  Exclusions:         " };
-    let lbl_act = if is_modern && use_unicode { "🎬 Render Frames:     " } else { "  Render Frames:      " };
-    let lbl_dur = if is_modern && use_unicode { "⏱ Est. Duration:     " } else { "  Est. Duration:      " };
-    let lbl_int = if is_modern && use_unicode { "⏱ Cap. Interval:     " } else { "  Cap. Interval:      " };
-    let lbl_spd = if is_modern && use_unicode { "🚀 Playback Speed:    " } else { "  Playback Speed:     " };
+    let lbl_act = if is_modern && use_unicode { "🎬  Render Frames:     " } else { "  Render Frames:      " };
+    let lbl_dur = if is_modern && use_unicode { "⏱  Est. Duration:     " } else { "  Est. Duration:      " };
+    let lbl_int = if is_modern && use_unicode { "⏱  Cap. Interval:     " } else { "  Cap. Interval:      " };
+    let lbl_spd = if is_modern && use_unicode { "🚀  Playback Speed:    " } else { "  Playback Speed:     " };
 
     let mut settings_text = format!(
-        "\n{}{}\n                    (Selected from Sessions list tab)\n\n{}{} fps  (Use [Up/Down] to adjust)\n\n{}{}",
+        "\n{}{}\n                      (Selected from Sessions list tab)\n\n{}{} fps  (Use [Up/Down] to adjust)\n\n{}{}",
         lbl_target, target_name,
         lbl_fps, state.render_fps,
         lbl_total, frame_count
@@ -409,22 +409,22 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     // Right Panel: Rendering Status
     let (status_title, status_style, status_desc) = match &state.render_state {
         RenderState::Idle => (
-            if is_modern && use_unicode { "⏸ READY" } else { "● READY" },
+            "● READY",
             Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD),
             "\n\n  Press [Enter] or [R] to start rendering target to MP4.".to_string(),
         ),
         RenderState::Rendering(msg) => (
-            if is_modern && use_unicode { "⚙ RENDERING" } else { "● RENDERING" },
+            "● RENDERING",
             Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
             format!("\n\n  FFmpeg rendering in progress...\n\n  {}", msg),
         ),
         RenderState::Success(msg) => (
-            if is_modern && use_unicode { "✅ COMPLETED" } else { "● RENDER COMPLETED" },
+            "● COMPLETED",
             Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
             format!("\n\n  {}", msg),
         ),
         RenderState::Error(err) => (
-            if is_modern && use_unicode { "❌ ERROR" } else { "● ERROR" },
+            "● ERROR",
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             format!("\n\n  Render failed:\n\n  {}", err),
         ),
@@ -556,12 +556,12 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
 
     let selected = &state.sessions[state.cursor_session_index];
 
-    let lbl_start = if is_modern && use_unicode { "📅 Started At:        " } else { "  Started At:          " };
-    let lbl_int = if is_modern && use_unicode { "⏱ Capture Interval:  " } else { "  Capture Interval:    " };
-    let lbl_disp = if is_modern && use_unicode { "🖥 Display Mode:      " } else { "  Display Mode:        " };
-    let lbl_back = if is_modern && use_unicode { "🔧 Capture Backend:   " } else { "  Capture Backend:     " };
-    let lbl_idx = if is_modern && use_unicode { "🔢 Frame Index Start: " } else { "  Frame Index Start:   " };
-    let lbl_excl = if is_modern && use_unicode { "🚫 Exclusions:        " } else { "  Exclusions:          " };
+    let lbl_start = if is_modern && use_unicode { "📅 Started At:          " } else { "  Started At:            " };
+    let lbl_int = if is_modern && use_unicode { "⏱  Capture Interval:   " } else { "  Capture Interval:      " };
+    let lbl_disp = if is_modern && use_unicode { "🖥  Display Mode:       " } else { "  Display Mode:          " };
+    let lbl_back = if is_modern && use_unicode { "🔧  Capture Backend:    " } else { "  Capture Backend:       " };
+    let lbl_idx = if is_modern && use_unicode { "🔢  Frame Index Start:  " } else { "  Frame Index Start:     " };
+    let lbl_excl = if is_modern && use_unicode { "🚫 Exclusions:          " } else { "  Exclusions:            " };
 
     let mut metadata_text = match &selected.metadata {
         Some(m) => {
