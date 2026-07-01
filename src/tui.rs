@@ -106,6 +106,40 @@ struct TuiState {
     change_library_input: Option<String>,
     status_message: Option<(String, SystemTime)>,
     show_welcome: bool,
+    supports_unicode: bool,
+}
+
+fn check_unicode_support() -> bool {
+    // Check standard environment variables
+    for var in &["LANG", "LC_ALL", "LC_CTYPE"] {
+        if let Ok(val) = std::env::var(var) {
+            let val_upper = val.to_uppercase();
+            if val_upper.contains("UTF-8") || val_upper.contains("UTF8") {
+                return true;
+            }
+        }
+    }
+
+    // Windows specific checks
+    if cfg!(target_os = "windows") {
+        // Windows Terminal supports UTF-8 natively
+        if std::env::var("WT_SESSION").is_ok() {
+            return true;
+        }
+        // VS Code terminal, Git Bash, etc.
+        if let Ok(term) = std::env::var("TERM") {
+            if term == "xterm-256color" || term == "cygwin" {
+                return true;
+            }
+        }
+    } else {
+        // macOS and Linux default terminals usually support UTF-8 unless explicitly configured otherwise
+        if std::env::var("TERM").is_ok() {
+            return true;
+        }
+    }
+
+    false
 }
 
 impl TuiState {
@@ -114,6 +148,8 @@ impl TuiState {
             .clone()
             .or_else(|| Library::default_path().ok())
             .ok_or_else(|| "Failed to resolve default library path".to_string())?;
+
+        let supports_unicode = check_unicode_support();
 
         Ok(Self {
             active_tab: ActiveTab::Capture,
@@ -133,6 +169,7 @@ impl TuiState {
             change_library_input: None,
             status_message: None,
             show_welcome: true,
+            supports_unicode,
         })
     }
 
@@ -1047,14 +1084,26 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
             let is_cursor = i == state.cursor_session_index;
             let is_active = i == state.active_session_index;
 
-            let marker = if is_cursor && is_active {
-                "▶ ● "
-            } else if is_cursor {
-                "▶   "
-            } else if is_active {
-                "  ● "
+            let marker = if state.supports_unicode {
+                if is_cursor && is_active {
+                    "▶ ● "
+                } else if is_cursor {
+                    "▶   "
+                } else if is_active {
+                    "  ● "
+                } else {
+                    "    "
+                }
             } else {
-                "    "
+                if is_cursor && is_active {
+                    "> * "
+                } else if is_cursor {
+                    ">   "
+                } else if is_active {
+                    "  * "
+                } else {
+                    "    "
+                }
             };
             let name = format!("{}{}", marker, s.name);
 
