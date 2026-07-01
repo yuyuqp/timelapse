@@ -19,6 +19,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Cell, Clear, Paragraph, Row, 
 use ratatui::Terminal;
 
 use crate::capture::{CaptureLoop, XcapBackend};
+use crate::config::{AppConfig, Theme};
 use crate::doctor::{run_diagnostics, DoctorCheck, CheckStatus};
 use crate::manage::{
     create_clean_plan, execute_clean_plan, list_sessions, open_session, CleanOptions,
@@ -107,6 +108,7 @@ struct TuiState {
     status_message: Option<(String, SystemTime)>,
     show_welcome: bool,
     supports_unicode: bool,
+    config: AppConfig,
 }
 
 fn check_unicode_support() -> bool {
@@ -144,8 +146,10 @@ fn check_unicode_support() -> bool {
 
 impl TuiState {
     fn new(library_path: Option<PathBuf>) -> std::result::Result<Self, String> {
+        let config = AppConfig::load();
         let resolved = library_path
             .clone()
+            .or_else(|| config.default_library.clone())
             .or_else(|| Library::default_path().ok())
             .ok_or_else(|| "Failed to resolve default library path".to_string())?;
 
@@ -170,6 +174,7 @@ impl TuiState {
             status_message: None,
             show_welcome: true,
             supports_unicode,
+            config,
         })
     }
 
@@ -246,7 +251,26 @@ fn tui_loop(
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
                     if state.show_welcome {
-                        state.show_welcome = false;
+                        match key.code {
+                            KeyCode::Char('q') | KeyCode::Char('Q') => {
+                                break;
+                            }
+                            KeyCode::Char('t') | KeyCode::Char('T') => {
+                                let next_theme = match state.config.theme {
+                                    Theme::Modern => Theme::Classic,
+                                    Theme::Classic => Theme::Modern,
+                                };
+                                state.config.theme = next_theme;
+                                if let Err(e) = state.config.save() {
+                                    state.set_status(format!("Failed to save config: {}", e));
+                                } else {
+                                    state.set_status(format!("Theme toggled to {:?}", next_theme));
+                                }
+                            }
+                            _ => {
+                                state.show_welcome = false;
+                            }
+                        }
                         continue;
                     }
                     if let Some(ref mut input_str) = state.change_library_input {
@@ -1318,6 +1342,63 @@ fn draw_library_modal(f: &mut ratatui::Frame, screen_area: Rect, input: &str) {
 }
 
 fn draw_welcome_screen(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
+    match state.config.theme {
+        Theme::Modern => draw_modern_welcome(f, area, state),
+        Theme::Classic => draw_classic_welcome(f, area, state),
+    }
+}
+
+fn draw_classic_welcome(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Cyan));
+
+    let logo = r#"
+  ████████ ██ ███    ███ ███████ ██       █████  ██████  ███████ ███████ 
+     ██    ██ ████  ████ ██      ██      ██   ██ ██   ██ ██      ██      
+     ██    ██ ██ ████ ██ █████   ██      ███████ ██████  ███████ █████   
+     ██    ██ ██  ██  ██ ██      ██      ██   ██ ██           ██ ██      
+     ██    ██ ██      ██ ███████ ███████ ██   ██ ██      ███████ ███████ 
+"#;
+
+    let mut logo_lines = vec![Line::raw("")];
+    for line in logo.lines() {
+        if !line.trim().is_empty() {
+            logo_lines.push(Line::from(vec![
+                Span::styled(line, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            ]));
+        }
+    }
+
+    logo_lines.push(Line::raw(""));
+    logo_lines.push(Line::from(vec![
+        Span::styled("    Session-based Screenshot Collector & Rendering Engine", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
+    ]));
+    logo_lines.push(Line::from(vec![
+        Span::styled(format!("    Version {}", env!("CARGO_PKG_VERSION")), Style::default().fg(Color::Green))
+    ]));
+    logo_lines.push(Line::raw(""));
+    logo_lines.push(Line::from(vec![
+        Span::styled(format!("    Active Library: {}", state.resolved_library_path.display()), Style::default().fg(Color::DarkGray))
+    ]));
+    logo_lines.push(Line::raw(""));
+    logo_lines.push(Line::raw(""));
+    logo_lines.push(Line::from(vec![
+        Span::styled(
+            "    [ Press any key to start... ]  (Press [T] to toggle theme)",
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::DIM)
+        )
+    ]));
+
+    let paragraph = Paragraph::new(logo_lines)
+        .block(block)
+        .style(Style::default().fg(Color::White));
+
+    let center_area = centered_rect(90, 80, area);
+    f.render_widget(paragraph, center_area);
+}
+
+fn draw_modern_welcome(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     let background_block = Block::default()
         .style(Style::default().bg(Color::Black));
     f.render_widget(background_block, area);
@@ -1445,6 +1526,10 @@ fn draw_welcome_screen(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         Line::from(vec![
             Span::styled("  [Tab]     ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
             Span::raw(" Cycle tabs left-to-right"),
+        ]),
+        Line::from(vec![
+            Span::styled("  [T]       ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::raw(" Toggle modern/classic theme"),
         ]),
         Line::from(vec![
             Span::styled("  [Q]       ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),

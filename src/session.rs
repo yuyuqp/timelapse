@@ -35,6 +35,10 @@ pub struct Library {
 
 impl Library {
     pub fn default_path() -> Result<PathBuf> {
+        if let Some(config_path) = crate::config::AppConfig::load().default_library {
+            return Ok(config_path);
+        }
+
         if let Some(video_dir) =
             UserDirs::new().and_then(|dirs| dirs.video_dir().map(Path::to_path_buf))
         {
