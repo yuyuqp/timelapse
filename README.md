@@ -252,7 +252,6 @@ The TUI provides a visual dashboard to manage capture intervals, select monitors
 ## Not Implemented Yet
 
 - Tauri GUI
-- Config file support
 
 ## License
 

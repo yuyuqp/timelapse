@@ -50,6 +50,9 @@ To keep the terminal user interface streamlined, several advanced configuration 
 - **Global Actions**:
   - `[Q]`: Safely exit the TUI (will request capture background loops to stop and restore terminal raw modes).
   - `[L]`: Change the active Timelapse library path (opens an interactive text input modal; disabled while capturing).
+- **Welcome Screen**:
+  - `[T]`: Toggle between **Modern** (neofetch style with gradient ASCII logo) and **Classic** (simple centered text style) themes. Persists automatically to config.toml.
+  - `[Any other key]`: Exit the welcome screen and enter the main dashboard.
 - **Tab-Specific Keys & Layout features**:
   - **Capture Tab**:
     - `[Space]`: Start or stop capture.
