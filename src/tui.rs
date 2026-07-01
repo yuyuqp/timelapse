@@ -99,7 +99,8 @@ struct TuiState {
     render_fps: u32,
     render_state: RenderState,
     sessions: Vec<SessionSummary>,
-    selected_session_index: usize,
+    cursor_session_index: usize,
+    active_session_index: usize,
     diagnostics: Option<Vec<DoctorCheck>>,
     confirm_clean_index: Option<usize>,
     change_library_input: Option<String>,
@@ -125,7 +126,8 @@ impl TuiState {
             render_fps: 15,
             render_state: RenderState::Idle,
             sessions: Vec::new(),
-            selected_session_index: 0,
+            cursor_session_index: 0,
+            active_session_index: 0,
             diagnostics: None,
             confirm_clean_index: None,
             change_library_input: None,
@@ -137,8 +139,11 @@ impl TuiState {
     fn refresh_sessions(&mut self) {
         if let Ok(list) = list_sessions(self.library_path.clone()) {
             self.sessions = list;
-            if self.selected_session_index >= self.sessions.len() && !self.sessions.is_empty() {
-                self.selected_session_index = self.sessions.len() - 1;
+            if self.cursor_session_index >= self.sessions.len() && !self.sessions.is_empty() {
+                self.cursor_session_index = self.sessions.len() - 1;
+            }
+            if self.active_session_index >= self.sessions.len() && !self.sessions.is_empty() {
+                self.active_session_index = self.sessions.len() - 1;
             }
         }
     }
@@ -150,12 +155,12 @@ impl TuiState {
     }
 
     fn get_selected_session_target(&self) -> SessionTarget {
-        if self.sessions.is_empty() || self.selected_session_index >= self.sessions.len() {
+        if self.sessions.is_empty() || self.active_session_index >= self.sessions.len() {
             SessionTarget::Latest {
                 library: self.library_path.clone(),
             }
         } else {
-            SessionTarget::Path(self.sessions[self.selected_session_index].path.clone())
+            SessionTarget::Path(self.sessions[self.active_session_index].path.clone())
         }
     }
 
@@ -474,20 +479,27 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
             } else {
                 match key {
                     KeyCode::Up => {
-                        if !state.sessions.is_empty() && state.selected_session_index > 0 {
-                            state.selected_session_index -= 1;
+                        if !state.sessions.is_empty() && state.cursor_session_index > 0 {
+                            state.cursor_session_index -= 1;
                         }
                     }
                     KeyCode::Down => {
                         if !state.sessions.is_empty()
-                            && state.selected_session_index + 1 < state.sessions.len()
+                            && state.cursor_session_index + 1 < state.sessions.len()
                         {
-                            state.selected_session_index += 1;
+                            state.cursor_session_index += 1;
+                        }
+                    }
+                    KeyCode::Enter | KeyCode::Char(' ') => {
+                        if !state.sessions.is_empty() && state.cursor_session_index < state.sessions.len() {
+                            state.active_session_index = state.cursor_session_index;
+                            let session_name = state.sessions[state.active_session_index].name.clone();
+                            state.set_status(format!("Selected session: {}", session_name));
                         }
                     }
                     KeyCode::Char('o') | KeyCode::Char('O') => {
                         if !state.sessions.is_empty() {
-                            let target = state.get_selected_session_target();
+                            let target = SessionTarget::Path(state.sessions[state.cursor_session_index].path.clone());
                             match open_session(target) {
                                 Ok(_) => state.set_status("Opened session in file manager"),
                                 Err(e) => state.set_status(format!("Failed to open: {}", e)),
@@ -496,14 +508,15 @@ fn handle_tab_input(state: &mut TuiState, key: &KeyCode, tx: &Sender<TuiMessage>
                     }
                     KeyCode::Char('c') | KeyCode::Char('C') => {
                         if !state.sessions.is_empty() {
-                            state.confirm_clean_index = Some(state.selected_session_index);
+                            state.confirm_clean_index = Some(state.cursor_session_index);
                         }
                     }
                     KeyCode::Char('a') | KeyCode::Char('A') => {
                         if !state.sessions.is_empty() {
+                            state.active_session_index = state.cursor_session_index;
                             state.capture_mode = CaptureMode::Append;
                             state.active_tab = ActiveTab::Capture;
-                            let session_name = state.sessions[state.selected_session_index].name.clone();
+                            let session_name = state.sessions[state.active_session_index].name.clone();
                             state.set_status(format!("Switched to Capture (Append mode for session: {})", session_name));
                         }
                     }
@@ -540,7 +553,7 @@ fn start_capture_thread(state: &mut TuiState, tx: Sender<TuiMessage>, force: boo
 
     // Resolve append mode target session path
     let session_path = if state.capture_mode == CaptureMode::Append && !state.sessions.is_empty() {
-        Some(state.sessions[state.selected_session_index].path.clone())
+        Some(state.sessions[state.active_session_index].path.clone())
     } else {
         None
     };
@@ -696,7 +709,7 @@ fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
     let selected_session_name = if state.sessions.is_empty() {
         "None".to_string()
     } else {
-        state.sessions[state.selected_session_index].name.clone()
+        state.sessions[state.active_session_index].name.clone()
     };
     let lib_name = state.resolved_library_path
         .file_name()
@@ -784,7 +797,7 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
             if state.sessions.is_empty() {
                 "Append (Disabled: No sessions found)".to_string()
             } else {
-                format!("Append to Session: {}", state.sessions[state.selected_session_index].name)
+                format!("Append to Session: {}", state.sessions[state.active_session_index].name)
             }
         }
     };
@@ -820,7 +833,7 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
 
     // Check for interval mismatch warning
     if state.capture_mode == CaptureMode::Append && !state.sessions.is_empty() {
-        let session = &state.sessions[state.selected_session_index];
+        let session = &state.sessions[state.active_session_index];
         if let Some(ref metadata) = session.metadata {
             if metadata.interval_seconds != state.capture_interval.as_secs() {
                 settings_lines.push(Line::raw(""));
@@ -884,8 +897,8 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     // Left Panel: Settings
     let target_name = if state.sessions.is_empty() {
         "latest (no sessions found)".to_string()
-    } else if state.selected_session_index < state.sessions.len() {
-        state.sessions[state.selected_session_index].name.clone()
+    } else if state.active_session_index < state.sessions.len() {
+        state.sessions[state.active_session_index].name.clone()
     } else {
         "latest".to_string()
     };
@@ -893,15 +906,15 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     let frame_count = if state.sessions.is_empty() {
         0
     } else {
-        state.sessions[state.selected_session_index]
+        state.sessions[state.active_session_index]
             .frames
             .as_ref()
             .map_or(0, |f| f.frame_count)
     };
 
     let mut exclude_count = 0;
-    if !state.sessions.is_empty() && state.selected_session_index < state.sessions.len() {
-        let session = &state.sessions[state.selected_session_index];
+    if !state.sessions.is_empty() && state.active_session_index < state.sessions.len() {
+        let session = &state.sessions[state.active_session_index];
         let mut exclusions = Vec::new();
         let exclude_file_path = session.path.join("exclude.txt");
         if exclude_file_path.is_file() {
@@ -936,7 +949,7 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     let (interval_desc, speed_desc) = if state.sessions.is_empty() {
         ("N/A".to_string(), "N/A".to_string())
     } else {
-        let session = &state.sessions[state.selected_session_index];
+        let session = &state.sessions[state.active_session_index];
         if let Some(ref m) = session.metadata {
             let interval = m.interval_seconds;
             let speed = state.render_fps as u64 * interval;
@@ -1031,11 +1044,19 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         .map(|(i, s)| {
             let frames_count = s.frames.as_ref().map_or("0".to_string(), |f| f.frame_count.to_string());
             let videos_count = s.videos.len().to_string();
-            let name = if i == state.selected_session_index {
-                format!("▶ {}", s.name)
+            let is_cursor = i == state.cursor_session_index;
+            let is_active = i == state.active_session_index;
+
+            let marker = if is_cursor && is_active {
+                "▶ ● "
+            } else if is_cursor {
+                "▶   "
+            } else if is_active {
+                "  ● "
             } else {
-                format!("  {}", s.name)
+                "    "
             };
+            let name = format!("{}{}", marker, s.name);
 
             let row = Row::new(vec![
                 name,
@@ -1044,7 +1065,7 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
                 s.path.display().to_string(),
             ]);
 
-            if i == state.selected_session_index {
+            if is_cursor {
                 row.style(Style::default().bg(Color::DarkGray).fg(Color::White))
             } else {
                 row
@@ -1062,11 +1083,11 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         ],
     )
     .header(header)
-    .block(Block::default().borders(Borders::ALL).title(" Sessions List "));
+    .block(Block::default().borders(Borders::ALL).title(" Sessions List (Press [Space/Enter] to Select for Capture/Render) "));
 
     f.render_widget(table, chunks[0]);
 
-    let selected = &state.sessions[state.selected_session_index];
+    let selected = &state.sessions[state.cursor_session_index];
     let mut metadata_text = match &selected.metadata {
         Some(m) => {
             format!(
