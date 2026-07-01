@@ -46,10 +46,10 @@ pub fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
         ])
         .split(size);
 
-    let is_modern = state.config.theme == Theme::Modern;
+    let is_extra = state.config.theme == Theme::Extra;
 
     // Tab Headers
-    let titles = if is_modern && state.supports_unicode {
+    let titles = if is_extra && state.supports_unicode {
         vec![
             "📸 Capture".to_string(),
             "🎬 Render".to_string(),
@@ -74,22 +74,22 @@ pub fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
         .and_then(|n| n.to_str())
         .unwrap_or("Timelapse");
     
-    let library_emoji = if is_modern && state.supports_unicode { " ⚡ " } else { " | " };
-    let session_emoji = if is_modern && state.supports_unicode { " 🎯 " } else { " | " };
+    let library_emoji = if is_extra && state.supports_unicode { " ⚡ " } else { " | " };
+    let session_emoji = if is_extra && state.supports_unicode { " 🎯 " } else { " | " };
     let header_title = format!(
         " Timelapse TUI{}Lib: {}{}Session: {} ",
         library_emoji, lib_name, session_emoji, selected_session_name
     );
 
-    let border_type = if is_modern { BorderType::Rounded } else { BorderType::Plain };
-    let header_border_color = if is_modern { Color::Magenta } else { Color::Gray };
-    let highlight_color = if is_modern { Color::LightMagenta } else { Color::Cyan };
+    let border_type = if is_extra { BorderType::Rounded } else { BorderType::Plain };
+    let header_border_color = if is_extra { Color::Magenta } else { Color::Gray };
+    let highlight_color = if is_extra { Color::LightMagenta } else { Color::Cyan };
 
     let tab_block = Block::default()
         .borders(Borders::ALL)
         .border_type(border_type)
         .border_style(Style::default().fg(header_border_color))
-        .title(Span::styled(header_title, Style::default().fg(if is_modern { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
+        .title(Span::styled(header_title, Style::default().fg(if is_extra { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
 
     let tabs = Tabs::new(titles)
         .select(state.active_tab as usize)
@@ -160,7 +160,7 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    let is_modern = state.config.theme == Theme::Modern;
+    let is_extra = state.config.theme == Theme::Extra;
     let use_unicode = state.supports_unicode;
 
     // Left Panel: Settings
@@ -179,10 +179,10 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         }
     };
 
-    let lib_label = if is_modern && use_unicode { "📂 Library Root:      " } else { "  Library Root:       " };
-    let int_label = if is_modern && use_unicode { "⏱  Interval:         " } else { "  Interval:           " };
-    let tgt_label = if is_modern && use_unicode { "🖥  Capture Target:   " } else { "  Capture Target:     " };
-    let mod_label = if is_modern && use_unicode { "⚙  Capture Mode:     " } else { "  Capture Mode:       " };
+    let lib_label = if is_extra && use_unicode { "📂 Library Root:      " } else { "  Library Root:       " };
+    let int_label = if is_extra && use_unicode { "⏱  Interval:         " } else { "  Interval:           " };
+    let tgt_label = if is_extra && use_unicode { "🖥  Capture Target:   " } else { "  Capture Target:     " };
+    let mod_label = if is_extra && use_unicode { "⚙  Capture Mode:     " } else { "  Capture Mode:       " };
 
     let mut settings_lines = vec![
         Line::raw(""),
@@ -220,7 +220,7 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         if let Some(ref metadata) = session.metadata {
             if metadata.interval_seconds != state.capture_interval.as_secs() {
                 settings_lines.push(Line::raw(""));
-                let warning_symbol = if is_modern && use_unicode { "⚠️" } else { "⚠" };
+                let warning_symbol = if is_extra && use_unicode { "⚠️" } else { "⚠" };
                 settings_lines.push(Line::from(vec![
                     Span::styled(
                         format!("  {} WARNING: Interval mismatch! Session uses {}s.", warning_symbol, metadata.interval_seconds),
@@ -231,12 +231,12 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         }
     }
 
-    let settings_border_color = if is_modern { Color::Magenta } else { Color::Gray };
+    let settings_border_color = if is_extra { Color::Magenta } else { Color::Gray };
     let settings_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(if is_modern { BorderType::Rounded } else { BorderType::Plain })
+        .border_type(if is_extra { BorderType::Rounded } else { BorderType::Plain })
         .border_style(Style::default().fg(settings_border_color))
-        .title(Span::styled(" Settings ", Style::default().fg(if is_modern { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
+        .title(Span::styled(" Settings ", Style::default().fg(if is_extra { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
 
     let settings_panel = Paragraph::new(settings_lines).block(settings_block);
     f.render_widget(settings_panel, chunks[0]);
@@ -276,14 +276,14 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     let control_border_color = match &state.capture_state {
         CaptureState::Capturing { .. } => Color::Red,
         CaptureState::Starting => Color::Yellow,
-        _ => if is_modern { Color::Cyan } else { Color::Gray },
+        _ => if is_extra { Color::Cyan } else { Color::Gray },
     };
 
     let control_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(if is_modern { BorderType::Rounded } else { BorderType::Plain })
+        .border_type(if is_extra { BorderType::Rounded } else { BorderType::Plain })
         .border_style(Style::default().fg(control_border_color))
-        .title(Span::styled(" Capture Control ", Style::default().fg(if is_modern { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
+        .title(Span::styled(" Capture Control ", Style::default().fg(if is_extra { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
 
     let status_panel = Paragraph::new(status_text)
         .style(status_style)
@@ -297,7 +297,7 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    let is_modern = state.config.theme == Theme::Modern;
+    let is_extra = state.config.theme == Theme::Extra;
     let use_unicode = state.supports_unicode;
 
     // Left Panel: Settings
@@ -365,14 +365,14 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         }
     };
 
-    let lbl_target = if is_modern && use_unicode { "🎯 Render Target:     " } else { "  Render Target:      " };
-    let lbl_fps = if is_modern && use_unicode { "⚡  Render FPS:        " } else { "  Render FPS:         " };
-    let lbl_total = if is_modern && use_unicode { "🎞  Total Frames:      " } else { "  Total Frames:       " };
-    let lbl_excl = if is_modern && use_unicode { "🚫 Exclusions:        " } else { "  Exclusions:         " };
-    let lbl_act = if is_modern && use_unicode { "🎬  Render Frames:     " } else { "  Render Frames:      " };
-    let lbl_dur = if is_modern && use_unicode { "⏱  Est. Duration:     " } else { "  Est. Duration:      " };
-    let lbl_int = if is_modern && use_unicode { "⏱  Cap. Interval:     " } else { "  Cap. Interval:      " };
-    let lbl_spd = if is_modern && use_unicode { "🚀  Playback Speed:    " } else { "  Playback Speed:     " };
+    let lbl_target = if is_extra && use_unicode { "🎯 Render Target:     " } else { "  Render Target:      " };
+    let lbl_fps = if is_extra && use_unicode { "⚡  Render FPS:        " } else { "  Render FPS:         " };
+    let lbl_total = if is_extra && use_unicode { "🎞  Total Frames:      " } else { "  Total Frames:       " };
+    let lbl_excl = if is_extra && use_unicode { "🚫 Exclusions:        " } else { "  Exclusions:         " };
+    let lbl_act = if is_extra && use_unicode { "🎬  Render Frames:     " } else { "  Render Frames:      " };
+    let lbl_dur = if is_extra && use_unicode { "⏱  Est. Duration:     " } else { "  Est. Duration:      " };
+    let lbl_int = if is_extra && use_unicode { "⏱  Cap. Interval:     " } else { "  Cap. Interval:      " };
+    let lbl_spd = if is_extra && use_unicode { "🚀  Playback Speed:    " } else { "  Playback Speed:     " };
 
     let mut settings_text = format!(
         "\n{}{}\n                      (Selected from Sessions list tab)\n\n{}{} fps  (Use [Up/Down] to adjust)\n\n{}{}",
@@ -396,12 +396,12 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         lbl_spd, speed_desc
     ));
 
-    let settings_border_color = if is_modern { Color::Magenta } else { Color::Gray };
+    let settings_border_color = if is_extra { Color::Magenta } else { Color::Gray };
     let settings_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(if is_modern { BorderType::Rounded } else { BorderType::Plain })
+        .border_type(if is_extra { BorderType::Rounded } else { BorderType::Plain })
         .border_style(Style::default().fg(settings_border_color))
-        .title(Span::styled(" Render Settings ", Style::default().fg(if is_modern { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
+        .title(Span::styled(" Render Settings ", Style::default().fg(if is_extra { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
 
     let settings_panel = Paragraph::new(settings_text).block(settings_block);
     f.render_widget(settings_panel, chunks[0]);
@@ -439,14 +439,14 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         RenderState::Rendering(_) => Color::Yellow,
         RenderState::Success(_) => Color::Green,
         RenderState::Error(_) => Color::Red,
-        _ => if is_modern { Color::Cyan } else { Color::Gray },
+        _ => if is_extra { Color::Cyan } else { Color::Gray },
     };
 
     let control_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(if is_modern { BorderType::Rounded } else { BorderType::Plain })
+        .border_type(if is_extra { BorderType::Rounded } else { BorderType::Plain })
         .border_style(Style::default().fg(control_border_color))
-        .title(Span::styled(" Rendering Control ", Style::default().fg(if is_modern { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
+        .title(Span::styled(" Rendering Control ", Style::default().fg(if is_extra { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
 
     let status_panel = Paragraph::new(status_text)
         .style(status_style)
@@ -455,16 +455,16 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
 }
 
 fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
-    let is_modern = state.config.theme == Theme::Modern;
+    let is_extra = state.config.theme == Theme::Extra;
     let use_unicode = state.supports_unicode;
 
     if state.sessions.is_empty() {
         let panel = Paragraph::new("\n  No sessions found in the library.\n\n  Run Capture to create a new session.")
             .block(Block::default()
                 .borders(Borders::ALL)
-                .border_type(if is_modern { BorderType::Rounded } else { BorderType::Plain })
-                .border_style(Style::default().fg(if is_modern { Color::Magenta } else { Color::Gray }))
-                .title(Span::styled(" Sessions List ", Style::default().fg(if is_modern { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD))));
+                .border_type(if is_extra { BorderType::Rounded } else { BorderType::Plain })
+                .border_style(Style::default().fg(if is_extra { Color::Magenta } else { Color::Gray }))
+                .title(Span::styled(" Sessions List ", Style::default().fg(if is_extra { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD))));
         f.render_widget(panel, area);
         return;
     }
@@ -520,7 +520,7 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
             ]);
 
             if is_cursor {
-                let bg_color = if is_modern { Color::Magenta } else { Color::DarkGray };
+                let bg_color = if is_extra { Color::Magenta } else { Color::DarkGray };
                 row.style(Style::default().bg(bg_color).fg(Color::White))
             } else {
                 row
@@ -528,7 +528,7 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         })
         .collect();
 
-    let table_title = if is_modern && use_unicode {
+    let table_title = if is_extra && use_unicode {
         " Sessions List (Press [Space/Enter] to Select) "
     } else {
         " Sessions List (Press [Space/Enter] to Select for Capture/Render) "
@@ -536,9 +536,9 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
 
     let table_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(if is_modern { BorderType::Rounded } else { BorderType::Plain })
-        .border_style(Style::default().fg(if is_modern { Color::Magenta } else { Color::Gray }))
-        .title(Span::styled(table_title, Style::default().fg(if is_modern { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
+        .border_type(if is_extra { BorderType::Rounded } else { BorderType::Plain })
+        .border_style(Style::default().fg(if is_extra { Color::Magenta } else { Color::Gray }))
+        .title(Span::styled(table_title, Style::default().fg(if is_extra { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
 
     let table = Table::new(
         rows,
@@ -556,12 +556,12 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
 
     let selected = &state.sessions[state.cursor_session_index];
 
-    let lbl_start = if is_modern && use_unicode { "📅 Started At:          " } else { "  Started At:            " };
-    let lbl_int = if is_modern && use_unicode { "⏱  Capture Interval:   " } else { "  Capture Interval:      " };
-    let lbl_disp = if is_modern && use_unicode { "🖥  Display Mode:       " } else { "  Display Mode:          " };
-    let lbl_back = if is_modern && use_unicode { "🔧  Capture Backend:    " } else { "  Capture Backend:       " };
-    let lbl_idx = if is_modern && use_unicode { "🔢  Frame Index Start:  " } else { "  Frame Index Start:     " };
-    let lbl_excl = if is_modern && use_unicode { "🚫 Exclusions:          " } else { "  Exclusions:            " };
+    let lbl_start = if is_extra && use_unicode { "📅 Started At:          " } else { "  Started At:            " };
+    let lbl_int = if is_extra && use_unicode { "⏱  Capture Interval:   " } else { "  Capture Interval:      " };
+    let lbl_disp = if is_extra && use_unicode { "🖥  Display Mode:       " } else { "  Display Mode:          " };
+    let lbl_back = if is_extra && use_unicode { "🔧  Capture Backend:    " } else { "  Capture Backend:       " };
+    let lbl_idx = if is_extra && use_unicode { "🔢  Frame Index Start:  " } else { "  Frame Index Start:     " };
+    let lbl_excl = if is_extra && use_unicode { "🚫 Exclusions:          " } else { "  Exclusions:            " };
 
     let mut metadata_text = match &selected.metadata {
         Some(m) => {
@@ -608,16 +608,16 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
 
     let metadata_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(if is_modern { BorderType::Rounded } else { BorderType::Plain })
-        .border_style(Style::default().fg(if is_modern { Color::Cyan } else { Color::Gray }))
-        .title(Span::styled(" Selected Session Metadata ", Style::default().fg(if is_modern { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
+        .border_type(if is_extra { BorderType::Rounded } else { BorderType::Plain })
+        .border_style(Style::default().fg(if is_extra { Color::Cyan } else { Color::Gray }))
+        .title(Span::styled(" Selected Session Metadata ", Style::default().fg(if is_extra { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
 
     let metadata_panel = Paragraph::new(metadata_text).block(metadata_block);
     f.render_widget(metadata_panel, chunks[1]);
 }
 
 fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
-    let is_modern = state.config.theme == Theme::Modern;
+    let is_extra = state.config.theme == Theme::Extra;
     let use_unicode = state.supports_unicode;
 
     let checks = match &state.diagnostics {
@@ -626,9 +626,9 @@ fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
             let panel = Paragraph::new("\n  Running diagnostics checks...")
                 .block(Block::default()
                     .borders(Borders::ALL)
-                    .border_type(if is_modern { BorderType::Rounded } else { BorderType::Plain })
-                    .border_style(Style::default().fg(if is_modern { Color::Magenta } else { Color::Gray }))
-                    .title(Span::styled(" System Diagnostics ", Style::default().fg(if is_modern { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD))));
+                    .border_type(if is_extra { BorderType::Rounded } else { BorderType::Plain })
+                    .border_style(Style::default().fg(if is_extra { Color::Magenta } else { Color::Gray }))
+                    .title(Span::styled(" System Diagnostics ", Style::default().fg(if is_extra { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD))));
             f.render_widget(panel, area);
             return;
         }
@@ -644,15 +644,15 @@ fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         .map(|check| {
             let (status_str, status_style) = match check.status {
                 CheckStatus::Ok => (
-                    if is_modern && use_unicode { "  ✅ OK   " } else { "  [ok] " },
+                    if is_extra && use_unicode { "  ✅ OK   " } else { "  [ok] " },
                     Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
                 ),
                 CheckStatus::Warn => (
-                    if is_modern && use_unicode { "  ⚠️ WARN " } else { "  [warn]" },
+                    if is_extra && use_unicode { "  ⚠️ WARN " } else { "  [warn]" },
                     Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
                 ),
                 CheckStatus::Error => (
-                    if is_modern && use_unicode { "  ❌ ERR  " } else { "  [error]" },
+                    if is_extra && use_unicode { "  ❌ ERR  " } else { "  [error]" },
                     Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ),
             };
@@ -665,7 +665,7 @@ fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         })
         .collect();
 
-    let table_title = if is_modern && use_unicode {
+    let table_title = if is_extra && use_unicode {
         " System Diagnostics (Press [D] to rerun) "
     } else {
         " System Diagnostics (Press [D] to rerun) "
@@ -673,9 +673,9 @@ fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
 
     let table_block = Block::default()
         .borders(Borders::ALL)
-        .border_type(if is_modern { BorderType::Rounded } else { BorderType::Plain })
-        .border_style(Style::default().fg(if is_modern { Color::Magenta } else { Color::Gray }))
-        .title(Span::styled(table_title, Style::default().fg(if is_modern { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
+        .border_type(if is_extra { BorderType::Rounded } else { BorderType::Plain })
+        .border_style(Style::default().fg(if is_extra { Color::Magenta } else { Color::Gray }))
+        .title(Span::styled(table_title, Style::default().fg(if is_extra { Color::Cyan } else { Color::White }).add_modifier(Modifier::BOLD)));
 
     let table = Table::new(
         rows,
@@ -775,12 +775,12 @@ fn draw_library_modal(f: &mut ratatui::Frame, screen_area: Rect, input: &str) {
 
 fn draw_welcome_screen(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     match state.config.theme {
-        Theme::Modern => draw_modern_welcome(f, area, state),
-        Theme::Classic => draw_classic_welcome(f, area, state),
+        Theme::Extra => draw_extra_welcome(f, area, state),
+        Theme::Minimal => draw_minimal_welcome(f, area, state),
     }
 }
 
-fn draw_classic_welcome(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
+fn draw_minimal_welcome(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Cyan));
@@ -830,7 +830,7 @@ fn draw_classic_welcome(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     f.render_widget(paragraph, center_area);
 }
 
-fn draw_modern_welcome(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
+fn draw_extra_welcome(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     let background_block = Block::default()
         .style(Style::default().bg(Color::Black));
     f.render_widget(background_block, area);
@@ -961,7 +961,7 @@ fn draw_modern_welcome(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
         ]),
         Line::from(vec![
             Span::styled("  [T]       ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            Span::raw(" Toggle modern/classic theme"),
+            Span::raw(" Toggle extra/minimal theme"),
         ]),
         Line::from(vec![
             Span::styled("  [Q]       ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),

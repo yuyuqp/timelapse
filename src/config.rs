@@ -21,13 +21,13 @@ pub struct AppConfig {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Theme {
-    Modern,
-    Classic,
+    Extra,
+    Minimal,
 }
 
 impl Default for Theme {
     fn default() -> Self {
-        Self::Modern
+        Self::Extra
     }
 }
 

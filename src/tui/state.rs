@@ -190,8 +190,8 @@ impl TuiState {
                 KeyCode::Char('q') | KeyCode::Char('Q') => return true,
                 KeyCode::Char('t') | KeyCode::Char('T') => {
                     let next_theme = match self.config.theme {
-                        Theme::Modern => Theme::Classic,
-                        Theme::Classic => Theme::Modern,
+                        Theme::Extra => Theme::Minimal,
+                        Theme::Minimal => Theme::Extra,
                     };
                     self.config.theme = next_theme;
                     if let Err(e) = self.config.save() {
