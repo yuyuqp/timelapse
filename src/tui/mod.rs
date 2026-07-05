@@ -67,6 +67,7 @@ fn tui_loop(
         terminal.draw(|f| {
             draw::draw_ui(f, &state);
         })?;
+        state.tick = state.tick.wrapping_add(1);
 
         // Check for terminal keyboard input events
         if event::poll(Duration::from_millis(50))? {
@@ -94,6 +95,11 @@ fn tui_loop(
                     tracing::debug!("TUI received frame captured event (index: {}).", index);
                     if let CaptureState::Capturing { ref mut frames_collected, .. } = state.capture_state {
                         *frames_collected = index + 1;
+                        let count = *frames_collected;
+                        state.frame_sparkline.push(count);
+                        if state.frame_sparkline.len() > 40 {
+                            state.frame_sparkline.remove(0);
+                        }
                     }
                 }
                 TuiMessage::CaptureFinished(count) => {

@@ -82,6 +82,10 @@ pub struct TuiState {
     pub show_welcome: bool,
     pub supports_unicode: bool,
     pub config: AppConfig,
+    /// Animation tick counter — incremented each draw frame (~20 fps)
+    pub tick: u64,
+    /// Rolling window of cumulative frame counts for the sparkline widget
+    pub frame_sparkline: Vec<u64>,
 }
 
 fn check_unicode_support() -> bool {
@@ -148,6 +152,8 @@ impl TuiState {
             show_welcome: true,
             supports_unicode,
             config,
+            tick: 0,
+            frame_sparkline: Vec::new(),
         })
     }
 
