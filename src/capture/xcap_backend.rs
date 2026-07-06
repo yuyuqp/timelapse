@@ -3,7 +3,7 @@ use xcap::Monitor;
 
 use crate::capture::{CaptureBackend, CapturedImage};
 use crate::error::{Result, TimelapseError};
-use crate::session::DisplayTarget;
+use crate::engine::session::DisplayTarget;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct XcapBackend;

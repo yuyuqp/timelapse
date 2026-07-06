@@ -3,7 +3,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Clear, Paragraph};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
-use crate::manage::SessionSummary;
+use crate::engine::manage::SessionSummary;
 use crate::tui::draw::common::centered_rect;
 use super::{rainbow, rainbow_off, pulse_on, C_DIM};
 
@@ -142,7 +142,7 @@ pub fn draw_extra_library_modal(
 pub fn draw_extra_render_confirm_modal(
     f: &mut ratatui::Frame,
     screen: Rect,
-    plan: &crate::render::RenderPlan,
+    plan: &crate::engine::render::RenderPlan,
     tick: u64,
 ) {
     let modal = centered_rect(75, 45, screen);

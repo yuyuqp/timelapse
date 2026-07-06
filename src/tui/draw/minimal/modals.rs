@@ -2,7 +2,7 @@ use ratatui::layout::Rect;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use ratatui::style::{Color, Modifier, Style};
 
-use crate::manage::SessionSummary;
+use crate::engine::manage::SessionSummary;
 use crate::tui::draw::common::centered_rect;
 
 pub fn draw_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, session: &SessionSummary) {
@@ -47,7 +47,7 @@ pub fn draw_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, session: &S
     f.render_widget(paragraph, modal_area);
 }
 
-pub fn draw_render_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, plan: &crate::render::RenderPlan) {
+pub fn draw_render_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, plan: &crate::engine::render::RenderPlan) {
     let modal_area = centered_rect(75, 45, screen_area);
     f.render_widget(Clear, modal_area);
 

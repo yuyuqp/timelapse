@@ -4,8 +4,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table};
 
 use crate::doctor::CheckStatus;
-use crate::session::DisplayTarget;
-use crate::render::parse_exclusions;
+use crate::engine::session::DisplayTarget;
+use crate::engine::render::parse_exclusions;
 use crate::tui::{CaptureMode, CaptureState, RenderState, TuiState};
 use super::{rainbow, rainbow_off, neon_spinner, pulse_on, sparkline_str, C_DIM, C_CAPTURE, C_RENDER, C_SESSION, C_DIAG};
 

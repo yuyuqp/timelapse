@@ -7,9 +7,9 @@ use ratatui::crossterm::event::KeyCode;
 
 use crate::config::{AppConfig, Theme};
 use crate::doctor::{run_diagnostics, DoctorCheck};
-use crate::manage::{list_sessions, open_session, CleanOptions, SessionSummary, SessionTarget};
-use crate::session::{DisplayTarget, Library};
-use crate::render::{create_render_plan, RenderOptions, RenderPlan, RenderTarget};
+use crate::engine::manage::{list_sessions, open_session, CleanOptions, SessionSummary, SessionTarget};
+use crate::engine::session::{DisplayTarget, Library};
+use crate::engine::render::{create_render_plan, RenderOptions, RenderPlan, RenderTarget};
 use super::TuiMessage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

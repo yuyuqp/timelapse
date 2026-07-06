@@ -3,7 +3,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use directories::ProjectDirs;
 
-use crate::session::DisplayTarget;
+use crate::engine::session::DisplayTarget;
 
 pub const DEFAULT_INTERVAL: Duration = Duration::from_secs(6);
 pub const DEFAULT_DISPLAY: DisplayTarget = DisplayTarget::All;

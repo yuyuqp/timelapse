@@ -10,7 +10,7 @@ use crate::config::{
     CAPTURE_BACKEND_NAME, DEFAULT_FRAME_PADDING, DEFAULT_FRAME_START, DEFAULT_INTERVAL,
 };
 use crate::error::{Result, TimelapseError};
-use crate::frame_store::FrameStore;
+use crate::engine::frame_store::FrameStore;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

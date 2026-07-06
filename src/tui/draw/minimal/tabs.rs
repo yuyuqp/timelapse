@@ -4,8 +4,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table};
 
 use crate::doctor::CheckStatus;
-use crate::session::DisplayTarget;
-use crate::render::parse_exclusions;
+use crate::engine::session::DisplayTarget;
+use crate::engine::render::parse_exclusions;
 use crate::tui::{CaptureMode, CaptureState, RenderState, TuiState};
 
 pub fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {

@@ -15,8 +15,8 @@ use ratatui::crossterm::ExecutableCommand;
 use ratatui::Terminal;
 
 use crate::capture::{CaptureLoop, XcapBackend};
-use crate::manage::{create_clean_plan, execute_clean_plan, CleanOptions};
-use crate::session::{Session, SessionOpenOptions};
+use crate::engine::manage::{create_clean_plan, execute_clean_plan, CleanOptions};
+use crate::engine::session::{Session, SessionOpenOptions};
 
 pub mod draw;
 pub mod state;
@@ -195,14 +195,14 @@ fn start_capture_thread(state: &mut TuiState, tx: Sender<TuiMessage>, force: boo
     });
 }
 
-fn start_render_thread(plan: crate::render::RenderPlan, state: &mut TuiState, tx: Sender<TuiMessage>) {
+fn start_render_thread(plan: crate::engine::render::RenderPlan, state: &mut TuiState, tx: Sender<TuiMessage>) {
     tracing::info!("TUI: Starting render thread background worker...");
     state.render_state = RenderState::Rendering("Initializing render plan...".to_string());
 
     thread::spawn(move || {
         let _ = tx.send(TuiMessage::RenderProgress("Running ffmpeg...".to_string()));
         let actual_frame_count = plan.sequence.frame_count - plan.exclude.iter().filter(|&&x| x >= plan.sequence.start_number && x <= plan.sequence.end_number).count();
-        match crate::render::run_ffmpeg(&plan) {
+        match crate::engine::render::run_ffmpeg(&plan) {
             Ok(_) => {
                 let _ = tx.send(TuiMessage::RenderFinished(format!(
                     "Rendered {} frames successfully to {}",

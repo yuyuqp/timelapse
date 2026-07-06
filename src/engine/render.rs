@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::error::{Result, TimelapseError};
-use crate::session::Library;
+use crate::engine::session::Library;
 
 pub const DEFAULT_RENDER_FPS: u32 = 15;
 

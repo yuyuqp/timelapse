@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::SystemTime;
 use crate::error::Result;
-use crate::session::Library;
+use crate::engine::session::Library;
 use xcap::Monitor;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

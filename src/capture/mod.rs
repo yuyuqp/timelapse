@@ -6,7 +6,7 @@ use std::time::Duration;
 use image::RgbaImage;
 
 use crate::error::Result;
-use crate::session::{DisplayTarget, Session};
+use crate::engine::session::{DisplayTarget, Session};
 
 mod xcap_backend;
 

@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
+use crate as timelapse;
 use timelapse::{
     CaptureBackend, CaptureLoop, CleanOptions, DEFAULT_RENDER_FPS, DisplayTarget, RenderOptions,
     RenderTarget, SessionOpenOptions, SessionTarget, XcapBackend,
@@ -296,12 +297,13 @@ fn run_render(args: RenderArgs) -> anyhow::Result<()> {
         exclude,
     };
 
-    let plan = timelapse::render::create_render_plan(options.clone())?;
+    let plan = crate::engine::render::create_render_plan(options.clone())?;
 
     eprintln!("frames: {}", plan.sequence.frames_dir.display());
     let excluded_count = plan.exclude.iter().filter(|&&x| x >= plan.sequence.start_number && x <= plan.sequence.end_number).count();
     let actual_count = plan.sequence.frame_count.saturating_sub(excluded_count);
-    eprintln!("frames found: {}", plan.sequence.frame_count);
+    let name_prefix = "frames found";
+    eprintln!("{}: {}", name_prefix, plan.sequence.frame_count);
     if excluded_count > 0 {
         eprintln!("frames excluded: {}", excluded_count);
         eprintln!("frames to render: {}", actual_count);
@@ -314,7 +316,7 @@ fn run_render(args: RenderArgs) -> anyhow::Result<()> {
     eprintln!("output: {}", plan.output_path.display());
     eprintln!("fps: {}", plan.fps);
 
-    let result = timelapse::render::render(options).context("render failed")?;
+    let result = crate::engine::render::render(options).context("render failed")?;
     eprintln!(
         "rendered {} frame(s) to {}",
         result.frame_count,

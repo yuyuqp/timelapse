@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::error::{Result, TimelapseError};
-use crate::render::FrameSequence;
-use crate::session::{Library, SessionMetadata, SessionPaths};
+use crate::engine::render::FrameSequence;
+use crate::engine::session::{Library, SessionMetadata, SessionPaths};
 
 #[derive(Debug, Clone)]
 pub enum SessionTarget {
