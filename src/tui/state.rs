@@ -9,6 +9,7 @@ use crate::config::{AppConfig, Theme};
 use crate::doctor::{run_diagnostics, DoctorCheck};
 use crate::manage::{list_sessions, open_session, CleanOptions, SessionSummary, SessionTarget};
 use crate::session::{DisplayTarget, Library};
+use crate::render::{create_render_plan, RenderOptions, RenderPlan, RenderTarget};
 use super::TuiMessage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,6 +78,7 @@ pub struct TuiState {
     pub active_session_index: usize,
     pub diagnostics: Option<Vec<DoctorCheck>>,
     pub confirm_clean_index: Option<usize>,
+    pub confirm_render_plan: Option<RenderPlan>,
     pub change_library_input: Option<String>,
     pub status_message: Option<(String, SystemTime)>,
     pub show_welcome: bool,
@@ -147,6 +149,7 @@ impl TuiState {
             active_session_index: 0,
             diagnostics: None,
             confirm_clean_index: None,
+            confirm_render_plan: None,
             change_library_input: None,
             status_message: None,
             show_welcome: true,
@@ -208,6 +211,19 @@ impl TuiState {
                 }
                 _ => {
                     self.show_welcome = false;
+                }
+            }
+            return false;
+        }
+
+        if let Some(plan) = self.confirm_render_plan.clone() {
+            match key {
+                KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
+                    self.confirm_render_plan = None;
+                    super::start_render_thread(plan, self, tx.clone());
+                }
+                _ => {
+                    self.confirm_render_plan = None;
                 }
             }
             return false;
@@ -365,7 +381,54 @@ impl TuiState {
                     if let RenderState::Idle | RenderState::Success(_) | RenderState::Error(_) =
                         self.render_state
                     {
-                        super::start_render_thread(self, tx.clone());
+                        let target = self.get_selected_session_target();
+                        let render_target = match target {
+                            SessionTarget::Latest { library } => RenderTarget::Latest { library },
+                            SessionTarget::Path(path) => RenderTarget::Path(path),
+                        };
+                        let fps = self.render_fps;
+
+                        let mock_options = RenderOptions {
+                            target: render_target.clone(),
+                            fps,
+                            output: None,
+                            overwrite: true,
+                            verbose: false,
+                            exclude: None,
+                        };
+                        match create_render_plan(mock_options) {
+                            Ok(plan) => {
+                                let default_path = plan.output_path;
+                                let timestamp = chrono::Local::now().format("%Y-%m-%d_%H%M%S").to_string();
+                                let stem = default_path.file_stem().and_then(|s| s.to_str()).unwrap_or("output");
+                                let extension = default_path.extension().and_then(|e| e.to_str()).unwrap_or("mp4");
+                                let new_filename = format!("{}_{}.{}", stem, timestamp, extension);
+                                let suffixed_path = default_path.with_file_name(new_filename);
+
+                                let final_options = RenderOptions {
+                                    target: render_target,
+                                    fps,
+                                    output: Some(suffixed_path),
+                                    overwrite: false,
+                                    verbose: false,
+                                    exclude: None,
+                                };
+
+                                match create_render_plan(final_options) {
+                                    Ok(final_plan) => {
+                                        self.confirm_render_plan = Some(final_plan);
+                                    }
+                                    Err(e) => {
+                                        self.render_state = RenderState::Error(e.to_string());
+                                        self.set_status(format!("Render plan failed: {}", e));
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                self.render_state = RenderState::Error(e.to_string());
+                                self.set_status(format!("Render plan failed: {}", e));
+                            }
+                        }
                     }
                 }
                 KeyCode::Up => {

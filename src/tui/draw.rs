@@ -228,6 +228,11 @@ pub fn draw_ui(f: &mut ratatui::Frame, state: &TuiState) {
     if let Some(ref input_str) = state.change_library_input {
         draw_library_modal(f, size, input_str);
     }
+
+    // Confirm Render Modal Overlay
+    if let Some(ref plan) = state.confirm_render_plan {
+        draw_render_confirm_modal(f, size, plan);
+    }
 }
 
 fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
@@ -809,6 +814,47 @@ fn draw_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, session: &Sessi
     f.render_widget(paragraph, modal_area);
 }
 
+fn draw_render_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, plan: &crate::render::RenderPlan) {
+    let modal_area = centered_rect(75, 45, screen_area);
+    f.render_widget(Clear, modal_area);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Confirm Render Command ")
+        .border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+
+    if modal_area.height < 10 || modal_area.width < 50 {
+        let warning_text = "\n  Terminal window is too small\n  to display confirmation.";
+        let paragraph = Paragraph::new(warning_text)
+            .block(block)
+            .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+        f.render_widget(paragraph, modal_area);
+        return;
+    }
+
+    let mut cmd = "ffmpeg".to_string();
+    for arg in plan.ffmpeg_args() {
+        let arg_str = arg.to_string_lossy();
+        if arg_str.contains(' ') || arg_str.is_empty() {
+            cmd.push_str(&format!(" \"{}\"", arg_str));
+        } else {
+            cmd.push_str(&format!(" {}", arg_str));
+        }
+    }
+
+    let confirm_text = format!(
+        "\n  About to execute the following ffmpeg command:\n\n  {}\n\n  Press [Y] or [Enter] to confirm and render,\n  or [Esc]/[N]/[Any other key] to cancel.",
+        cmd
+    );
+
+    let paragraph = Paragraph::new(confirm_text)
+        .block(block)
+        .style(Style::default().fg(Color::White))
+        .wrap(ratatui::widgets::Wrap { trim: false });
+
+    f.render_widget(paragraph, modal_area);
+}
+
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -1356,6 +1402,9 @@ fn draw_extra_main(f: &mut ratatui::Frame, size: Rect, state: &TuiState) {
     }
     if let Some(ref input) = state.change_library_input {
         draw_extra_library_modal(f, size, input, state.tick);
+    }
+    if let Some(ref plan) = state.confirm_render_plan {
+        draw_extra_render_confirm_modal(f, size, plan, state.tick);
     }
 }
 
@@ -2261,4 +2310,58 @@ fn draw_extra_library_modal(
     ];
 
     f.render_widget(Paragraph::new(lines).block(block), modal);
+}
+
+fn draw_extra_render_confirm_modal(
+    f: &mut ratatui::Frame,
+    screen: Rect,
+    plan: &crate::render::RenderPlan,
+    tick: u64,
+) {
+    let modal = centered_rect(75, 45, screen);
+    f.render_widget(Clear, modal);
+
+    let border_col = rainbow_off(tick / 3, 4);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+        .border_style(Style::default().fg(border_col))
+        .title(Span::styled(
+            " \u{1f3ac}  CONFIRM RENDER COMMAND  \u{1f3ac} ",
+            Style::default().fg(border_col).add_modifier(Modifier::BOLD),
+        ));
+
+    if modal.height < 10 || modal.width < 50 {
+        f.render_widget(
+            Paragraph::new("\n  Terminal too small.\n  Please enlarge your window.")
+                .block(block)
+                .style(Style::default().fg(Color::Yellow)),
+            modal,
+        );
+        return;
+    }
+
+    let mut cmd = "ffmpeg".to_string();
+    for arg in plan.ffmpeg_args() {
+        let arg_str = arg.to_string_lossy();
+        if arg_str.contains(' ') || arg_str.is_empty() {
+            cmd.push_str(&format!(" \"{}\"", arg_str));
+        } else {
+            cmd.push_str(&format!(" {}", arg_str));
+        }
+    }
+
+    let confirm_text = format!(
+        "\n  About to execute the following ffmpeg command:\n\n  {}\n\n  Press [Y] or [Enter] to confirm and render,\n  or [Esc]/[N]/[Any other key] to cancel.",
+        cmd
+    );
+
+    f.render_widget(
+        Paragraph::new(confirm_text)
+            .block(block)
+            .style(Style::default().fg(Color::White))
+            .wrap(ratatui::widgets::Wrap { trim: false }),
+        modal,
+    );
 }
