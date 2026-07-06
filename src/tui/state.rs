@@ -274,6 +274,18 @@ impl TuiState {
                     self.set_status("Cannot change library while capturing");
                 }
             }
+            KeyCode::Char('t') | KeyCode::Char('T') => {
+                let next_theme = match self.config.theme {
+                    Theme::Extra => Theme::Minimal,
+                    Theme::Minimal => Theme::Extra,
+                };
+                self.config.theme = next_theme;
+                if let Err(e) = self.config.save() {
+                    self.set_status(format!("Failed to save config: {}", e));
+                } else {
+                    self.set_status(format!("Theme toggled to {:?}", next_theme));
+                }
+            }
             KeyCode::Tab => {
                 self.active_tab = self.active_tab.next();
                 if self.active_tab == ActiveTab::Sessions {
