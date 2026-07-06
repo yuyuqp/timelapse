@@ -1,180 +1,14 @@
-use std::time::Duration;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Cell, Clear, Paragraph, Row, Table, Tabs};
+use ratatui::widgets::{Block, BorderType, Borders, Cell, Paragraph, Row, Table};
 
 use crate::doctor::CheckStatus;
-use crate::manage::SessionSummary;
 use crate::session::DisplayTarget;
 use crate::render::parse_exclusions;
-use crate::tui::{ActiveTab, CaptureMode, CaptureState, RenderState, TuiState};
-use super::common::centered_rect;
+use crate::tui::{CaptureMode, CaptureState, RenderState, TuiState};
 
-pub fn draw_minimal_main(f: &mut ratatui::Frame, size: Rect, state: &TuiState) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3), // Tab headers
-            Constraint::Min(3),    // Content
-            Constraint::Length(1), // Status bar
-            Constraint::Length(1), // Footer keys
-        ])
-        .split(size);
-
-    // Tab Headers
-    let titles = vec![
-        "[1] Capture".to_string(),
-        "[2] Render".to_string(),
-        "[3] Sessions".to_string(),
-        "[4] Diagnostics".to_string(),
-    ];
-    let selected_session_name = if state.sessions.is_empty() {
-        "None".to_string()
-    } else {
-        state.sessions[state.active_session_index].name.clone()
-    };
-    let lib_name = state.resolved_library_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("Timelapse");
-    
-    let library_emoji = " | ";
-    let session_emoji = " | ";
-    let header_title = format!(
-        " Timelapse TUI{}Lib: {}{}Session: {} ",
-        library_emoji, lib_name, session_emoji, selected_session_name
-    );
-
-    let border_type = BorderType::Plain;
-    let header_border_color = Color::Gray;
-    let highlight_color = Color::Cyan;
-
-    let tab_block = Block::default()
-        .borders(Borders::ALL)
-        .border_type(border_type)
-        .border_style(Style::default().fg(header_border_color))
-        .title(Span::styled(header_title, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)));
-
-    let tabs = Tabs::new(titles)
-        .select(state.active_tab as usize)
-        .block(tab_block)
-        .style(Style::default().fg(Color::Gray))
-        .highlight_style(
-            Style::default()
-                .fg(highlight_color)
-                .add_modifier(Modifier::BOLD),
-        );
-    f.render_widget(tabs, chunks[0]);
-
-    // Content area
-    match state.active_tab {
-        ActiveTab::Capture => draw_capture_tab(f, chunks[1], state),
-        ActiveTab::Render => draw_render_tab(f, chunks[1], state),
-        ActiveTab::Sessions => draw_sessions_tab(f, chunks[1], state),
-        ActiveTab::Diagnostics => draw_diagnostics_tab(f, chunks[1], state),
-    }
-
-    // Status Message Bar
-    let status_text = if let Some((ref msg, timestamp)) = state.status_message {
-        if timestamp.elapsed().unwrap_or(Duration::ZERO) < Duration::from_secs(4) {
-            msg.clone()
-        } else {
-            "".to_string()
-        }
-    } else {
-        "".to_string()
-    };
-    let status_bar = Paragraph::new(status_text)
-        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::ITALIC));
-    f.render_widget(status_bar, chunks[2]);
-
-    // Footer Help keys
-    let footer_text = match state.active_tab {
-        ActiveTab::Capture => {
-            "[Tab] Switch Tabs | [Space] Start/Stop Capture | [Up/Down] Adjust Interval | [D] Toggle Display | [A] Toggle Mode | [L] Change Library | [Q] Quit"
-        }
-        ActiveTab::Render => {
-            "[Tab] Switch Tabs | [Enter/R] Start Render | [Up/Down] Adjust FPS | [L] Change Library | [Q] Quit"
-        }
-        ActiveTab::Sessions => {
-            "[Tab] Switch Tabs | [Up/Down] Select Session | [O] Open Explorer | [C] Clean | [A] Append Mode | [U] Refresh | [L] Change Library | [Q] Quit"
-        }
-        ActiveTab::Diagnostics => {
-            "[Tab] Switch Tabs | [D/U] Refresh Checks | [L] Change Library | [Q] Quit"
-        }
-    };
-    let footer = Paragraph::new(footer_text)
-        .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(footer, chunks[3]);
-
-    // Confirm Clean Modal Overlay
-    if let Some(index) = state.confirm_clean_index {
-        draw_confirm_modal(f, size, &state.sessions[index]);
-    }
-
-    // Change Library Modal Overlay
-    if let Some(ref input_str) = state.change_library_input {
-        draw_library_modal(f, size, input_str);
-    }
-
-    // Confirm Render Modal Overlay
-    if let Some(ref plan) = state.confirm_render_plan {
-        draw_render_confirm_modal(f, size, plan);
-    }
-}
-
-pub fn draw_minimal_welcome(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Cyan));
-
-    let logo = r#"
-  ████████ ██ ███    ███ ███████ ██       █████  ██████  ███████ ███████ 
-     ██    ██ ████  ████ ██      ██      ██   ██ ██   ██ ██      ██      
-     ██    ██ ██ ████ ██ █████   ██      ███████ ██████  ███████ █████   
-     ██    ██ ██  ██  ██ ██      ██      ██   ██ ██           ██ ██      
-     ██    ██ ██      ██ ███████ ███████ ██   ██ ██      ███████ ███████ 
-"#;
-
-    let mut logo_lines = vec![Line::raw("")];
-    for line in logo.lines() {
-        if !line.trim().is_empty() {
-            logo_lines.push(Line::from(vec![
-                Span::styled(line, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-            ]));
-        }
-    }
-
-    logo_lines.push(Line::raw(""));
-    logo_lines.push(Line::from(vec![
-        Span::styled("    Session-based Screenshot Collector & Rendering Engine", Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
-    ]));
-    logo_lines.push(Line::from(vec![
-        Span::styled(format!("    Version {}", env!("CARGO_PKG_VERSION")), Style::default().fg(Color::Green))
-    ]));
-    logo_lines.push(Line::raw(""));
-    logo_lines.push(Line::from(vec![
-        Span::styled(format!("    Active Library: {}", state.resolved_library_path.display()), Style::default().fg(Color::DarkGray))
-    ]));
-    logo_lines.push(Line::raw(""));
-    logo_lines.push(Line::raw(""));
-    logo_lines.push(Line::from(vec![
-        Span::styled(
-            "    [ Press any key to start... ]  (Press [T] to toggle theme)",
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::DIM)
-        )
-    ]));
-
-    let paragraph = Paragraph::new(logo_lines)
-        .block(block)
-        .style(Style::default().fg(Color::White));
-
-    let center_area = centered_rect(90, 80, area);
-    f.render_widget(paragraph, center_area);
-}
-
-fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
+pub fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -310,7 +144,7 @@ fn draw_capture_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     f.render_widget(status_panel, chunks[1]);
 }
 
-fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
+pub fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -470,7 +304,7 @@ fn draw_render_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     f.render_widget(status_panel, chunks[1]);
 }
 
-fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
+pub fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     if state.sessions.is_empty() {
         let panel = Paragraph::new("\n  No sessions found in the library.\n\n  Run Capture to create a new session.")
             .block(Block::default()
@@ -625,7 +459,7 @@ fn draw_sessions_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     f.render_widget(metadata_panel, chunks[1]);
 }
 
-fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
+pub fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     let checks = match &state.diagnostics {
         Some(c) => c,
         None => {
@@ -691,107 +525,4 @@ fn draw_diagnostics_tab(f: &mut ratatui::Frame, area: Rect, state: &TuiState) {
     .block(table_block);
 
     f.render_widget(table, area);
-}
-
-fn draw_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, session: &SessionSummary) {
-    let modal_area = centered_rect(65, 32, screen_area);
-    f.render_widget(Clear, modal_area);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Clean Confirmation ")
-        .border_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
-
-    // Dynamic warning: If terminal size/modal area size is too small to render options
-    if modal_area.height < 12 || modal_area.width < 50 {
-        let warning_text = "\n  ⚠ Warning:\n  Terminal window is too small\n  to display the clean options.\n\n  Please enlarge your window\n  or decrease your font size.";
-        let paragraph = Paragraph::new(warning_text)
-            .block(block)
-            .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
-        f.render_widget(paragraph, modal_area);
-        return;
-    }
-
-    let frames_count = session.frames.as_ref().map_or(0, |f| f.frame_count);
-    let videos_count = session.videos.len();
-
-    // Dynamic warning: If the session has no files to clean
-    let confirm_text = if frames_count == 0 && videos_count == 0 {
-        format!(
-            "\n  Clean session files from: {}\n\n  ⚠ Warning: This session is already clean.\n  No frames or videos were found to delete.\n\n  Press [Any key] to return.",
-            session.name
-        )
-    } else {
-        format!(
-            "\n  Clean session files from: {}\n\n  Select an action:\n\n    [D] - Dry run (simulates cleaning both)\n    [F] - Delete all screenshots/frames ({} files)\n    [V] - Delete rendered MP4 videos ({} files)\n    [A] - Delete BOTH frames and videos\n\n  Press [Any other key] to cancel.",
-            session.name, frames_count, videos_count
-        )
-    };
-
-    let paragraph = Paragraph::new(confirm_text)
-        .block(block)
-        .style(Style::default().fg(Color::White));
-
-    f.render_widget(paragraph, modal_area);
-}
-
-fn draw_render_confirm_modal(f: &mut ratatui::Frame, screen_area: Rect, plan: &crate::render::RenderPlan) {
-    let modal_area = centered_rect(75, 45, screen_area);
-    f.render_widget(Clear, modal_area);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Confirm Render Command ")
-        .border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-
-    if modal_area.height < 10 || modal_area.width < 50 {
-        let warning_text = "\n  Terminal window is too small\n  to display confirmation.";
-        let paragraph = Paragraph::new(warning_text)
-            .block(block)
-            .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
-        f.render_widget(paragraph, modal_area);
-        return;
-    }
-
-    let mut cmd = "ffmpeg".to_string();
-    for arg in plan.ffmpeg_args() {
-        let arg_str = arg.to_string_lossy();
-        if arg_str.contains(' ') || arg_str.is_empty() {
-            cmd.push_str(&format!(" \"{}\"", arg_str));
-        } else {
-            cmd.push_str(&format!(" {}", arg_str));
-        }
-    }
-
-    let confirm_text = format!(
-        "\n  About to execute the following ffmpeg command:\n\n  {}\n\n  Press [Y] or [Enter] to confirm and render,\n  or [Esc]/[N]/[Any other key] to cancel.",
-        cmd
-    );
-
-    let paragraph = Paragraph::new(confirm_text)
-        .block(block)
-        .style(Style::default().fg(Color::White))
-        .wrap(ratatui::widgets::Wrap { trim: false });
-
-    f.render_widget(paragraph, modal_area);
-}
-
-fn draw_library_modal(f: &mut ratatui::Frame, screen_area: Rect, input: &str) {
-    let modal_area = centered_rect(70, 20, screen_area);
-    f.render_widget(Clear, modal_area);
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Change Library Path ")
-        .border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-
-    let prompt_text = format!(
-        "\n  Enter new Timelapse library root path:\n\n  > {}█\n\n  Press [Enter] to confirm, [Esc] to cancel.",
-        input
-    );
-    let paragraph = Paragraph::new(prompt_text)
-        .block(block)
-        .style(Style::default().fg(Color::White));
-
-    f.render_widget(paragraph, modal_area);
 }
