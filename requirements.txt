@@ -1,3 +1,0 @@
-anyio>=4.6
-pillow>=11.0
-textual>=0.62
